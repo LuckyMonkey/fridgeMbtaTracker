@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: mbta-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  api:
+    build:
+      context: ./server
+      dockerfile: dockerfile
+    container_name: mbta-api
+    restart: unless-stopped
+    environment:
+      - PORT=4000
+      - MONGO_URL=mongodb://mongo:27017/mbta
+      # Optional: set in an .env file (MBTA recommends using an API key for higher rate limits)
+      - MBTA_API_KEY=${MBTA_API_KEY:-}
+      - DEFAULT_STOP_ID=${DEFAULT_STOP_ID:-place-sdmnl}
+      - DEFAULT_STOP_NAME=${DEFAULT_STOP_NAME:-Suffolk Downs}
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mongo
+
+  web:
+    build:
+      context: ./client
+      dockerfile: dockerfile
+    container_name: mbta-web
+    restart: unless-stopped
+    environment:
+      - PORT=5173
+      - VITE_PROXY_TARGET=http://api:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  mongo_data:
