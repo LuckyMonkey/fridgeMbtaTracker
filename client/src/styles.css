@@ -411,6 +411,15 @@ select {
   gap: 12px;
 }
 
+.row--missed .title {
+  color: #6b7280;
+}
+
+.row--next {
+  border-left: 4px solid var(--accent);
+  padding-left: 8px;
+}
+
 .row-left {
   display: flex;
   gap: 12px;

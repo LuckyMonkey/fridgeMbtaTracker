@@ -55,6 +55,7 @@ const toPositiveNumber = (value, fallback) => {
 
 const DEFAULT_WALK_TIME_MINUTES = toPositiveNumber(import.meta.env.VITE_WALK_MINUTES, 4);
 const DEFAULT_REFRESH_INTERVAL_MS = 20_000;
+const MIN_MISS_MS = 3 * 60_000;
 
 const getPredictionEventMs = (prediction) => {
   const iso = prediction?.arrivalTime || prediction?.departureTime;
@@ -238,14 +239,28 @@ export default function App() {
   const wonderlandPredictions = predictionsLive.filter((p) => matchesHeadsign(p, 'wonderland'));
   const primaryPredictions = bowdoinPredictions.length ? bowdoinPredictions : inboundPredictions;
   const secondaryPredictions = wonderlandPredictions.length ? wonderlandPredictions : outboundPredictions;
+  const annotatePredictions = useCallback(
+    (list) =>
+      list.map((prediction) => {
+        const eventMs = getPredictionEventMs(prediction);
+        const eventDeltaMs = Number.isFinite(eventMs) ? eventMs - nowMs : null;
+        const isMissed = eventDeltaMs !== null && eventDeltaMs < MIN_MISS_MS;
+        const isCatchable = eventDeltaMs !== null && eventDeltaMs >= walkBufferMs;
+        return { ...prediction, eventMs, eventDeltaMs, isMissed, isCatchable };
+      }),
+    [nowMs, walkBufferMs]
+  );
+  const annotatedPrimary = useMemo(() => annotatePredictions(primaryPredictions), [annotatePredictions, primaryPredictions]);
+  const annotatedSecondary = useMemo(() => annotatePredictions(secondaryPredictions), [annotatePredictions, secondaryPredictions]);
   const checklist = useMemo(
     () => ({
-      inbound: primaryPredictions.some((p) => matchesHeadsign(p, 'bowdoin')),
-      outbound: secondaryPredictions.some((p) => matchesHeadsign(p, 'wonderland')),
+      inbound: annotatedPrimary.some((p) => matchesHeadsign(p, 'bowdoin')),
+      outbound: annotatedSecondary.some((p) => matchesHeadsign(p, 'wonderland')),
     }),
-    [primaryPredictions, secondaryPredictions]
+    [annotatedPrimary, annotatedSecondary]
   );
   const integrityOk = checklist.inbound && checklist.outbound;
+  const nextAccessibleId = annotatedPrimary.find((p) => p.isCatchable)?.id || null;
 
   useEffect(() => {
     if (!integrityOk) {
@@ -254,43 +269,38 @@ export default function App() {
   }, [integrityOk, checklist]);
 
   const walkIndicator = useMemo(() => {
-    const sourceCandidates = primaryPredictions;
-    const candidates = sourceCandidates
-      .map((p) => ({ ...p, eventMs: getPredictionEventMs(p) }))
-      .filter((p) => p.eventMs !== null && p.eventMs >= nowMs - 90_000)
-      .sort((a, b) => a.eventMs - b.eventMs);
-
-    const accessible = candidates.filter((p) => p.eventMs - nowMs >= walkBufferMs);
+    const candidates = annotatedPrimary.filter((p) => p.eventMs !== null);
+    const accessible = candidates.filter((p) => p.isCatchable);
     const next = accessible[0] || candidates[0];
-    if (!next) return null;
+    if (!next || next.eventDeltaMs === null) return null;
 
-    const eventDeltaMs = next.eventMs - nowMs;
+    const eventDeltaMs = next.eventDeltaMs;
     const leaveDeltaMs = eventDeltaMs - walkBufferMs;
     const headsign = next.headsign || next.routeName || next.routeId || 'Train';
+    const directionLabel = next.direction || 'Train';
 
     if (leaveDeltaMs <= 0) {
       return {
         urgency: 'urgent',
         title: 'Leave now',
-        subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
+        subtitle: `${directionLabel} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
       };
     }
 
-    const minutesThreshold = 60_000;
-    if (leaveDeltaMs < minutesThreshold) {
+    if (leaveDeltaMs < MIN_MISS_MS) {
       return {
         urgency: 'soon',
         title: `Leave in ${formatDuration(leaveDeltaMs)}`,
-        subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
+        subtitle: `${directionLabel} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
       };
     }
 
     return {
       urgency: 'normal',
       title: `Leave in ${formatDuration(leaveDeltaMs)}`,
-      subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
+      subtitle: `${directionLabel} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
     };
-  }, [primaryPredictions, nowMs, walkBufferMs]);
+  }, [annotatedPrimary, nowMs, walkBufferMs]);
 
   const automationStateLabel = !automationStatus?.enabled ? 'Disabled' : automationStatus.active ? 'Active' : 'Armed';
   const automationStateClass = !automationStatus?.enabled ? 'status-off' : automationStatus.active ? 'status-active' : 'status-armed';
@@ -397,8 +407,8 @@ export default function App() {
                 <div>
                   <p className="panel-label">Inbound · Bowdoin</p>
                   <strong className="panel-title">
-                    {primaryPredictions.length
-                      ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
+                    {annotatedPrimary.length
+                      ? `Next ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
                       : 'No inbound departures'}
                   </strong>
                 </div>
@@ -410,27 +420,33 @@ export default function App() {
                   ↻
                 </button>
               </div>
-              {primaryPredictions.length ? (
+              {annotatedPrimary.length ? (
                 <div className="list-frame">
                   <ul className="list">
-                    {primaryPredictions.slice(0, 8).map((p) => (
-                      <li key={p.id} className="row">
-                        <div className="row-left">
-                          <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                          <div className="details">
-                            <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
-                            <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                    {annotatedPrimary.slice(0, 8).map((p) => {
+                      const classes = ['row', p.isMissed ? 'row--missed' : '', p.id === nextAccessibleId ? 'row--next' : '']
+                        .filter(Boolean)
+                        .join(' ');
+                      const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${p.isMissed ? ' (missed)' : ''}`;
+                      return (
+                        <li key={p.id} className={classes}>
+                          <div className="row-left">
+                            <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                            <div className="details">
+                              <div className="title">{title}</div>
+                              <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="row-right">
-                          {p.routeId ? (
-                            <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                              {p.routeId}
-                            </span>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
+                          <div className="row-right">
+                            {p.routeId ? (
+                              <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                                {p.routeId}
+                              </span>
+                            ) : null}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ) : (
@@ -458,27 +474,31 @@ export default function App() {
                   ↻
                 </button>
               </div>
-              {secondaryPredictions.length ? (
+              {annotatedSecondary.length ? (
                 <div className="list-frame">
                   <ul className="list">
-                    {secondaryPredictions.slice(0, 10).map((p) => (
-                      <li key={p.id} className="row">
-                        <div className="row-left">
-                          <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                          <div className="details">
-                            <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
-                            <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                    {annotatedSecondary.slice(0, 10).map((p) => {
+                      const classes = ['row', p.isMissed ? 'row--missed' : ''].filter(Boolean).join(' ');
+                      const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${p.isMissed ? ' (missed)' : ''}`;
+                      return (
+                        <li key={p.id} className={classes}>
+                          <div className="row-left">
+                            <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                            <div className="details">
+                              <div className="title">{title}</div>
+                              <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="row-right">
-                          {p.routeId ? (
-                            <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                              {p.routeId}
-                            </span>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
+                          <div className="row-right">
+                            {p.routeId ? (
+                              <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                                {p.routeId}
+                              </span>
+                            ) : null}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ) : (
