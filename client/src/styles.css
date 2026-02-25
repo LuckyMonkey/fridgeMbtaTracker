@@ -156,7 +156,44 @@ select {
   gap: 16px;
 }
 
-.outbound-control {
+.flashcard-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flashcard-stack {
+  position: relative;
+  min-height: 340px;
+}
+
+.flashcard {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--border);
+  padding: 20px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(10%);
+  transition: transform 0.6s ease, opacity 0.6s ease;
+  box-shadow: 0 20px 40px -20px var(--shadow);
+}
+
+.flashcard--outbound {
+  transform: translateX(-10%);
+}
+
+.flashcard--active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.card-toggle {
   display: flex;
   justify-content: center;
 }
@@ -165,23 +202,13 @@ select {
   border: 2px solid var(--border);
   background: #f0f4ff;
   color: #111;
-  padding: 14px 22px;
+  padding: 14px 28px;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.2px;
   text-transform: uppercase;
   cursor: pointer;
   box-shadow: 0 10px 30px -20px var(--shadow);
-}
-
-.outbound-drawer {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.45s ease;
-}
-
-.outbound-drawer--open {
-  max-height: 1000px;
 }
 
 .panel {

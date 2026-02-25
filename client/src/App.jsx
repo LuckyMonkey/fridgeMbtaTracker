@@ -86,7 +86,7 @@ export default function App() {
   const [refreshIntervalMs, setRefreshIntervalMs] = useState(DEFAULT_REFRESH_INTERVAL_MS);
   const [automationStatus, setAutomationStatus] = useState(null);
   const [nowMs, setNowMs] = useState(Date.now());
-  const [showOutbound, setShowOutbound] = useState(false);
+  const [activeCard, setActiveCard] = useState('inbound');
   const [automationAction, setAutomationAction] = useState({ busy: false, error: '' });
 
   const pollRef = useRef(null);
@@ -216,28 +216,15 @@ export default function App() {
   const dominantColor = getRouteColor(dominantRouteId);
   const walkMinutesLabel = Number.isInteger(walkTimeMinutes) ? String(walkTimeMinutes) : walkTimeMinutes.toFixed(2);
   const walkBufferMs = walkTimeMinutes * 60_000;
-  const lastUpdated = payload?.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString() : '—';
-
-  const matchesHeadsign = (prediction, keyword) => {
-    const haystack = `${prediction.headsign || ''} ${prediction.routeName || ''}`.toLowerCase();
-    return haystack.includes(keyword.toLowerCase());
-  };
-  const isBowdoinPrediction = (prediction) => {
-    return matchesHeadsign(prediction, 'bowdoin');
-  };
-  const isWonderlandPrediction = (prediction) => {
-    return matchesHeadsign(prediction, 'wonderland');
-  };
+  const lastUpdated = payload?.fetchedAt ? new Date(payload?.fetchedAt).toLocaleTimeString() : '—';
 
   const inboundPredictions = predictionsLive.filter((p) => p.directionId === 1);
   const outboundPredictions = predictionsLive.filter((p) => p.directionId === 0);
-  const bowdoinPredictions = predictionsLive.filter(isBowdoinPrediction);
-  const wonderlandPredictions = predictionsLive.filter(isWonderlandPrediction);
-  const primaryPredictions = bowdoinPredictions.length ? bowdoinPredictions : inboundPredictions;
-  const secondaryPredictions = wonderlandPredictions.length ? wonderlandPredictions : outboundPredictions;
+  const primaryPredictions = inboundPredictions;
+  const secondaryPredictions = outboundPredictions;
 
   const walkIndicator = useMemo(() => {
-    const sourceCandidates = bowdoinPredictions.length ? bowdoinPredictions : inboundPredictions;
+    const sourceCandidates = primaryPredictions;
     const candidates = sourceCandidates
       .map((p) => ({ ...p, eventMs: getPredictionEventMs(p) }))
       .filter((p) => p.eventMs !== null && p.eventMs >= nowMs - 90_000)
@@ -354,95 +341,100 @@ export default function App() {
           </section>
         </section>
 
-        <section className="predictions-section">
-          <section className="panel prediction-panel prediction-panel--primary">
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                ⬆️
-              </span>
-              <div>
-                <p className="panel-label">Inbound · Bowdoin</p>
-                <strong className="panel-title">
-                  {primaryPredictions.length
-                    ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
-                    : 'No inbound departures'}
-                </strong>
+        <section className="flashcard-wrapper">
+          <div className="flashcard-stack">
+            <article
+              className={`flashcard flashcard--inbound ${activeCard === 'inbound' ? 'flashcard--active' : ''}`}
+              aria-hidden={activeCard !== 'inbound'}
+            >
+              <div className="panel-heading">
+                <span className="panel-emoji" role="presentation">
+                  ⬆️
+                </span>
+                <div>
+                  <p className="panel-label">Inbound · Bowdoin</p>
+                  <strong className="panel-title">
+                    {primaryPredictions.length
+                      ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
+                      : 'No inbound departures'}
+                  </strong>
+                </div>
               </div>
-            </div>
-            {primaryPredictions.length ? (
-              <ul className="list">
-                {primaryPredictions.slice(0, 8).map((p) => (
-                  <li key={p.id} className="row">
-                    <div className="row-left">
-                      <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                      <div className="details">
-                        <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
-                        <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+              {primaryPredictions.length ? (
+                <ul className="list">
+                  {primaryPredictions.slice(0, 8).map((p) => (
+                    <li key={p.id} className="row">
+                      <div className="row-left">
+                        <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                        <div className="details">
+                          <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
+                          <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="row-right">
-                      {p.routeId ? (
-                        <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                          {p.routeId}
-                        </span>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="empty primary-empty">Inbound timing settles soon.</div>
-            )}
-          </section>
+                      <div className="row-right">
+                        {p.routeId ? (
+                          <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                            {p.routeId}
+                          </span>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="empty primary-empty">Inbound timing settles soon.</div>
+              )}
+            </article>
+
+            <article
+              className={`flashcard flashcard--outbound ${activeCard === 'outbound' ? 'flashcard--active' : ''}`}
+              aria-hidden={activeCard !== 'outbound'}
+            >
+              <div className="panel-heading">
+                <span className="panel-emoji" role="presentation">
+                  ↩️
+                </span>
+                <div>
+                  <p className="panel-label">Outbound · Wonderland</p>
+                  <strong className="panel-title">Outbound timetable</strong>
+                </div>
+              </div>
+              {secondaryPredictions.length ? (
+                <ul className="list">
+                  {secondaryPredictions.slice(0, 10).map((p) => (
+                    <li key={p.id} className="row">
+                      <div className="row-left">
+                        <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                        <div className="details">
+                          <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
+                          <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                        </div>
+                      </div>
+                      <div className="row-right">
+                        {p.routeId ? (
+                          <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                            {p.routeId}
+                          </span>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="empty secondary-empty">Outbound arrivals show up here once available.</div>
+              )}
+            </article>
+          </div>
+
+          <div className="card-toggle">
+            <button
+              className="slide-button"
+              onClick={() => setActiveCard((prev) => (prev === 'inbound' ? 'outbound' : 'inbound'))}
+            >
+              {activeCard === 'inbound' ? 'View Wonderland (Outbound)' : 'Show Bowdoin (Inbound)'}
+            </button>
+          </div>
         </section>
-
-        <div className="outbound-control">
-          <button
-            className="slide-button"
-            onClick={() => setShowOutbound((prev) => !prev)}
-            aria-expanded={showOutbound}
-          >
-            {showOutbound ? '⇦ Close Wonderland timetable (Outbound)' : '⇨ View Wonderland timetable (Outbound)'}
-          </button>
-        </div>
-
-        <div className={`outbound-drawer ${showOutbound ? 'outbound-drawer--open' : ''}`} aria-hidden={!showOutbound}>
-          <section className="panel prediction-panel prediction-panel--secondary">
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                ↩️
-              </span>
-              <div>
-                <p className="panel-label">Wonderland · Outbound</p>
-                <strong className="panel-title">Outbound timetable</strong>
-              </div>
-            </div>
-            {outboundPredictions.length ? (
-              <ul className="list">
-                {outboundPredictions.slice(0, 10).map((p) => (
-                  <li key={p.id} className="row">
-                    <div className="row-left">
-                      <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                      <div className="details">
-                        <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
-                        <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
-                      </div>
-                    </div>
-                    <div className="row-right">
-                      {p.routeId ? (
-                        <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                          {p.routeId}
-                        </span>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="empty secondary-empty">Outbound arrivals show up here once available.</div>
-            )}
-          </section>
-        </div>
 
         <section className="panel volume-panel">
           <div className="panel-heading">
