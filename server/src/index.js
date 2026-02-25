@@ -67,6 +67,7 @@ const shouldForceRefresh = (value) => {
   return ['1', 'true', 'yes', 'on'].includes(normalized);
 };
 
+// Refreshes the cached predictions for one stop/route combination, updating TTL, audit log, and lastError.
 const refreshKey = async (
   { stopId, routeType = 1, routeId = '', limit = PREDICTIONS_LIMIT, apiKey = MBTA_API_KEY },
   { reason = 'poll' } = {}
@@ -141,6 +142,7 @@ const insertFetchAudit = async ({ stopId, routeType, routeId, count, source }) =
 
 const POLL_STAGGER_MS = 350;
 
+// Sequentially refreshes every pinned stop to spread MBTA requests.
 const pollPinnedStops = async () => {
   if (!db) return;
   const stops = await db
@@ -171,6 +173,7 @@ const pollPinnedStops = async () => {
 const startPredictionPoller = () => {
   let stopped = false;
 
+  // Recursively reschedules itself to honor the configured poll interval.
   const cycle = async () => {
     if (stopped) return;
     const start = Date.now();
@@ -192,6 +195,7 @@ const startPredictionPoller = () => {
   };
 };
 
+// Returns cached predictions, optionally forcing a refresh or returning stale data on error.
 const getPredictionsCached = async ({
   stopId,
   routeType = 1,
