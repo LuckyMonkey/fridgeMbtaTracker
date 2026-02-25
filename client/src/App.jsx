@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { translations } from './i18n';
 
 const formatMinutes = (minutes) => {
   if (minutes === null || minutes === undefined) return '—';
@@ -136,133 +137,8 @@ const writeLanguageCookie = (value) => {
   document.cookie = `${LANG_COOKIE}=${value};max-age=${COOKIE_MAX_AGE_SECONDS};path=/`;
 };
 
-const TRANSLATIONS = {
-  en: {
-    brandTitle: 'MBTA Tracker',
-    subtitle: 'Inbound focus · Bowdoin bound',
-    controls: {
-      stop: 'Stop',
-      refresh: 'Refresh',
-      languageLabel: 'Language',
-      switchToEnglish: 'Switch to English',
-      switchToSpanish: 'Switch to Spanish',
-    },
-    status: {
-      selected: 'Selected stop',
-      updated: 'Last update',
-    },
-    alerts: {
-      error: 'Error',
-      automation: 'Automation action error',
-      inboundIntegrity: 'Inbound view no longer shows Bowdoin trains.',
-      outboundIntegrity: 'Outbound view no longer shows Wonderland trains.',
-    },
-    walk: {
-      label: 'Bowdoin departure',
-      idleTitle: 'Waiting for timing',
-      idleSubtitle: 'No inbound predictions yet.',
-      trainIn: 'train in',
-      leaveNow: 'Leave now',
-      leaveSoon: 'Leave in',
-      walkBufferText: (walkMinutes, refreshSeconds) => `Walk buffer: ${walkMinutes} min · API refresh ${refreshSeconds}s`,
-    },
-    flashcards: {
-      inboundLabel: 'Inbound · Bowdoin',
-      inboundNextPrefix: 'Next',
-      noDepartures: 'No inbound departures',
-      outboundLabel: 'Outbound · Wonderland',
-      outboundTitle: 'Outbound timetable',
-      outboundEmpty: 'Outbound arrivals show up here once available.',
-      primaryEmpty: 'Inbound timing settles soon.',
-      flipToOutboundTitle: 'Flip to Wonderland outbound',
-      flipToInboundTitle: 'Flip to Bowdoin inbound',
-      missedSuffix: ' (missed)',
-      scheduledLabel: 'Scheduled',
-    },
-    volumePanel: {
-      label: 'Volume boost',
-      statusLabel: 'Status',
-      nextTriggerLabel: 'Next trigger',
-      raise: 'Raise',
-      restore: 'Restore',
-    },
-    automation: {
-      modes: {
-        outbound_arrival: 'Wonderland approach',
-        inbound_departure: 'Bowdoin post-departure',
-      },
-      statuses: {
-        disabled: 'Disabled',
-        active: 'Active',
-        armed: 'Armed',
-      },
-      upcomingIn: 'in',
-    },
-  },
-  es: {
-    brandTitle: 'MBTA Tracker',
-    subtitle: 'Enfoque entrante · rumbo a Bowdoin',
-    controls: {
-      stop: 'Parada',
-      refresh: 'Actualizar',
-      languageLabel: 'Idioma',
-      switchToEnglish: 'Cambiar a inglés',
-      switchToSpanish: 'Cambiar a español',
-    },
-    status: {
-      selected: 'Parada seleccionada',
-      updated: 'Última actualización',
-    },
-    alerts: {
-      error: 'Error',
-      automation: 'Error de automatización',
-      inboundIntegrity: 'La vista entrante ya no muestra trenes a Bowdoin.',
-      outboundIntegrity: 'La vista saliente ya no muestra trenes a Wonderland.',
-    },
-    walk: {
-      label: 'Salida a Bowdoin',
-      idleTitle: 'Esperando tiempos',
-      idleSubtitle: 'Aún no hay predicciones entrantes.',
-      trainIn: 'tren en',
-      leaveNow: 'Sal ahora',
-      leaveSoon: 'Sal en',
-      walkBufferText: (walkMinutes, refreshSeconds) =>
-        `Buffer de caminata: ${walkMinutes} min · actualización API cada ${refreshSeconds}s`,
-    },
-    flashcards: {
-      inboundLabel: 'Entrante · Bowdoin',
-      inboundNextPrefix: 'Siguiente',
-      noDepartures: 'Sin salidas entrantes',
-      outboundLabel: 'Saliente · Wonderland',
-      outboundTitle: 'Programa de salida',
-      outboundEmpty: 'Las salidas a Wonderland aparecen aquí cuando haya datos.',
-      primaryEmpty: 'Los tiempos entrantes llegan pronto.',
-      flipToOutboundTitle: 'Mostrar salidas a Wonderland',
-      flipToInboundTitle: 'Mostrar salidas a Bowdoin',
-      missedSuffix: ' (perdido)',
-      scheduledLabel: 'Programado',
-    },
-    volumePanel: {
-      label: 'Aumento de volumen',
-      statusLabel: 'Estado',
-      nextTriggerLabel: 'Próximo disparo',
-      raise: 'Subir',
-      restore: 'Restaurar',
-    },
-    automation: {
-      modes: {
-        outbound_arrival: 'Aproximación a Wonderland',
-        inbound_departure: 'Salida de Bowdoin',
-      },
-      statuses: {
-        disabled: 'Desactivado',
-        active: 'Activo',
-        armed: 'Preparado',
-      },
-      upcomingIn: 'en',
-    },
-  },
-};
+const getLanguageText = (lang) => translations[lang] || translations[DEFAULT_LANGUAGE] || {};
+
 
 export default function App() {
   const [stops, setStops] = useState([]);
@@ -460,7 +336,7 @@ export default function App() {
   );
   const integrityOk = checklist.inbound && checklist.outbound;
   const nextAccessibleId = annotatedPrimary.find((p) => p.isCatchable)?.id || null;
-  const languageText = TRANSLATIONS[language] || TRANSLATIONS[DEFAULT_LANGUAGE];
+  const languageText = getLanguageText(language);
 
   const renderPredictionList = (items, { maxRows = 10, emptyLabel = '', highlightId = null } = {}) => {
     if (!items.length) {
@@ -510,7 +386,7 @@ export default function App() {
   }, [integrityOk, checklist]);
 
   const walkIndicator = useMemo(() => {
-    const text = TRANSLATIONS[language] || TRANSLATIONS[DEFAULT_LANGUAGE];
+    const text = languageText;
     const candidates = annotatedPrimary.filter((p) => p.eventMs !== null);
     const accessible = candidates.filter((p) => p.isCatchable);
     const next = accessible[0] || candidates[0];
