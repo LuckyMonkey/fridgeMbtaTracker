@@ -119,6 +119,7 @@ const useMediaQuery = (query) => {
 const LANG_COOKIE = 'mbta-lang';
 const DEFAULT_LANGUAGE = 'es';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+const FALLBACK_STOP_ID = 'place-sdmnl';
 
 const readLanguageCookie = () => {
   if (typeof document === 'undefined') return null;
@@ -153,6 +154,8 @@ export default function App() {
   const [activeCard, setActiveCard] = useState('inbound');
   const [automationAction, setAutomationAction] = useState({ busy: false, error: '' });
   const [mobileCard, setMobileCard] = useState('hero');
+  const [passNotice, setPassNotice] = useState('');
+  const [passLoading, setPassLoading] = useState('');
   const isMobileLayout = useMediaQuery('(max-width: 720px)');
   const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
 
@@ -385,7 +388,7 @@ export default function App() {
     }
   }, [integrityOk, checklist]);
 
-  const walkIndicator = useMemo(() => {
+const walkIndicator = useMemo(() => {
     const text = languageText;
     const candidates = annotatedPrimary.filter((p) => p.eventMs !== null);
     const accessible = candidates.filter((p) => p.isCatchable);
@@ -418,9 +421,59 @@ export default function App() {
       title: `${text.walk.leaveSoon} ${formatDuration(leaveDeltaMs)}`,
       subtitle: `${directionLabel} · ${headsign} · ${text.walk.trainIn} ${formatDuration(eventDeltaMs)}`,
     };
-  }, [annotatedPrimary, language, nowMs, walkBufferMs]);
+}, [annotatedPrimary, language, nowMs, walkBufferMs]);
 
-  const automationStateKey = !automationStatus?.enabled ? 'disabled' : automationStatus.active ? 'active' : 'armed';
+const handleTrainPass = useCallback(
+  async (direction, predictions) => {
+    const directionLabel = direction === 'bowdoin' ? 'Bowdoin' : 'Wonderland';
+    if (!predictions.length) {
+      setPassNotice(`No ${directionLabel} predictions available`);
+      return;
+    }
+    const prediction = predictions[0];
+    const measurementMs = Date.now();
+    const minutes = Number.isFinite(prediction.liveMinutes) ? prediction.liveMinutes : null;
+    const predictedAtMs =
+      Number.isFinite(prediction.eventMs) && prediction.eventMs > 0
+        ? prediction.eventMs
+        : minutes !== null
+        ? measurementMs + minutes * 60_000
+        : null;
+
+    const stopId = selectedStopId || FALLBACK_STOP_ID;
+    setPassLoading(direction);
+    setPassNotice(`Logging ${directionLabel} pass…`);
+
+    try {
+      const res = await fetch('/api/train-pass', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          stopId,
+          direction,
+          predictionId: prediction.id,
+          predictedAtMs,
+          measuredAtMs: measurementMs,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || 'Unable to log train pass');
+      }
+      const offsetMs = Number.isFinite(json?.offsetMs) ? json.offsetMs : null;
+      const offsetLabel =
+        offsetMs === null ? 'offset unknown' : `${offsetMs >= 0 ? '+' : ''}${Math.round(offsetMs / 1000)}s`;
+      setPassNotice(`Logged ${directionLabel} pass (${offsetLabel})`);
+    } catch (err) {
+      setPassNotice(`Failed to log ${directionLabel} pass: ${err?.message || 'unknown error'}`);
+    } finally {
+      setPassLoading('');
+    }
+  },
+  [selectedStopId]
+);
+
+const automationStateKey = !automationStatus?.enabled ? 'disabled' : automationStatus.active ? 'active' : 'armed';
   const automationStateLabel = languageText.automation.statuses[automationStateKey] || languageText.automation.statuses.disabled;
   const automationStateClass = `status-${automationStateKey}`;
   const nextAutomationWindow = automationStatus?.nextWindow || null;
@@ -557,19 +610,38 @@ export default function App() {
               <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
             </div>
           </div>
-          <div className="volume-actions">
-            <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
-              {languageText.volumePanel.raise}
-            </button>
-            <button
-              className="action-button"
-              disabled={automationAction.busy}
-              onClick={() => triggerAutomation('restore')}
-            >
-              {languageText.volumePanel.restore}
-            </button>
-          </div>
-          {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
+            <div className="volume-actions">
+              <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
+                {languageText.volumePanel.raise}
+              </button>
+              <button
+                className="action-button"
+                disabled={automationAction.busy}
+                onClick={() => triggerAutomation('restore')}
+              >
+                {languageText.volumePanel.restore}
+              </button>
+            </div>
+            <div className="pass-actions">
+              <button
+                type="button"
+                className="pass-button"
+                onClick={() => handleTrainPass('bowdoin', annotatedPrimary)}
+                disabled={!annotatedPrimary.length || Boolean(passLoading)}
+              >
+                BOWDOIN TRAIN PASSING
+              </button>
+              <button
+                type="button"
+                className="pass-button"
+                onClick={() => handleTrainPass('wonderland', annotatedSecondary)}
+                disabled={!annotatedSecondary.length || Boolean(passLoading)}
+              >
+                WONDERLAND TRAIN PASSING
+              </button>
+            </div>
+            {passNotice ? <p className="pass-note">{passNotice}</p> : null}
+            {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
         </div>
       ),
     };

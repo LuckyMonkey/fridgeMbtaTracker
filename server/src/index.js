@@ -418,6 +418,50 @@ app.get('/api/suffolk-downs', async (_req, res) => {
   res.redirect(302, url);
 });
 
+const toFiniteNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+app.post('/api/train-pass', async (req, res) => {
+  const body = req.body || {};
+  const direction = String(body.direction || '').trim().toLowerCase();
+  if (!direction) {
+    return res.status(400).json({ error: 'direction is required' });
+  }
+
+  const stopId = String(body.stopId || DEFAULT_STOP_ID || '').trim();
+  if (!stopId) {
+    return res.status(400).json({ error: 'stopId is required' });
+  }
+
+  const predictionId = body.predictionId ? String(body.predictionId) : null;
+  const predictedAtMs = toFiniteNumber(body.predictedAtMs);
+  const measuredAtMs = toFiniteNumber(body.measuredAtMs) || Date.now();
+  const offsetMs = predictedAtMs !== null ? measuredAtMs - predictedAtMs : null;
+
+  const doc = {
+    stopId,
+    direction,
+    predictionId,
+    predictedAt: predictedAtMs !== null ? new Date(predictedAtMs) : null,
+    measuredAt: new Date(measuredAtMs),
+    offsetMs,
+    createdAt: new Date(),
+  };
+
+  try {
+    await db.collection('train_passes').insertOne(doc);
+    return res.status(201).json({ ok: true, offsetMs });
+  } catch (err) {
+    console.error('Failed to log train pass', err);
+    return res.status(500).json({
+      error: 'Failed to log train pass',
+      details: err?.message || String(err),
+    });
+  }
+});
+
 app.get('/api/automation/status', (_req, res) => {
   res.json(volumeAutomation.getStatus());
 });

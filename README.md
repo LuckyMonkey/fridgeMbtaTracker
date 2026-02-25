@@ -78,6 +78,10 @@ Automation behaviours:
 1. **Webhook receiver (`AUTOMATION_WEBHOOK_URL`)** – receive `raise` / `restore` events in Home Assistant, Node-RED, etc.
 2. **Local commands** – run `AUTOMATION_RAISE_COMMAND` / `AUTOMATION_RESTORE_COMMAND` inside the API container for Bluetooth or local automation.
 
+## 🚏 Train pass logging
+
+Press the **BOWDOIN TRAIN PASSING** or **WONDERLAND TRAIN PASSING** buttons in the volume panel whenever a train rolls past your apartment. Each tap records the button-press time versus the API prediction, storing the difference in Mongo so the service can learn the average offset for future arrivals.
+
 Manual trigger test:
 
 ```sh
