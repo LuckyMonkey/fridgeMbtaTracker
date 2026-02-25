@@ -200,11 +200,6 @@ select {
   transform: translateX(0);
 }
 
-.card-toggle {
-  display: flex;
-  justify-content: center;
-}
-
 .slide-button {
   border: 2px solid var(--border);
   background: #f0f4ff;

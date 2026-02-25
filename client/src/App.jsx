@@ -54,7 +54,7 @@ const toPositiveNumber = (value, fallback) => {
 };
 
 const DEFAULT_WALK_TIME_MINUTES = toPositiveNumber(import.meta.env.VITE_WALK_MINUTES, 4);
-const DEFAULT_REFRESH_INTERVAL_MS = 60_000;
+const DEFAULT_REFRESH_INTERVAL_MS = 20_000;
 
 const getPredictionEventMs = (prediction) => {
   const iso = prediction?.arrivalTime || prediction?.departureTime;
@@ -74,6 +74,15 @@ const formatRelative = (deltaMs) => {
   if (deltaMs <= 0) return 'now';
   if (deltaMs < 60_000) return '<1 min';
   return `${Math.ceil(deltaMs / 60_000)} min`;
+};
+
+const formatDuration = (deltaMs) => {
+  if (!Number.isFinite(deltaMs)) return '—';
+  const totalSeconds = Math.max(0, Math.round(deltaMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const paddedSeconds = seconds.toString().padStart(2, '0');
+  return `${minutes}m ${paddedSeconds}s`;
 };
 
 export default function App() {
@@ -251,7 +260,8 @@ export default function App() {
       .filter((p) => p.eventMs !== null && p.eventMs >= nowMs - 90_000)
       .sort((a, b) => a.eventMs - b.eventMs);
 
-    const next = candidates[0];
+    const accessible = candidates.filter((p) => p.eventMs - nowMs >= walkBufferMs);
+    const next = accessible[0] || candidates[0];
     if (!next) return null;
 
     const eventDeltaMs = next.eventMs - nowMs;
@@ -262,24 +272,25 @@ export default function App() {
       return {
         urgency: 'urgent',
         title: 'Leave now',
-        subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatRelative(eventDeltaMs)}`,
+        subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
       };
     }
 
-    if (leaveDeltaMs < 60_000) {
+    const minutesThreshold = 60_000;
+    if (leaveDeltaMs < minutesThreshold) {
       return {
         urgency: 'soon',
-        title: 'Leave in <1 min',
-        subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatRelative(eventDeltaMs)}`,
+        title: `Leave in ${formatDuration(leaveDeltaMs)}`,
+        subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
       };
     }
 
     return {
       urgency: 'normal',
-      title: `Leave in ${Math.ceil(leaveDeltaMs / 60_000)} min`,
-      subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatRelative(eventDeltaMs)}`,
+      title: `Leave in ${formatDuration(leaveDeltaMs)}`,
+      subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
     };
-  }, [inboundPredictions, nowMs, walkBufferMs]);
+  }, [primaryPredictions, nowMs, walkBufferMs]);
 
   const automationStateLabel = !automationStatus?.enabled ? 'Disabled' : automationStatus.active ? 'Active' : 'Armed';
   const automationStateClass = !automationStatus?.enabled ? 'status-off' : automationStatus.active ? 'status-active' : 'status-armed';
@@ -383,45 +394,45 @@ export default function App() {
                 <span className="panel-emoji" role="presentation">
                   ⬆️
                 </span>
-              <div>
-                <p className="panel-label">Inbound · Bowdoin</p>
-                <strong className="panel-title">
-                  {primaryPredictions.length
-                    ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
-                    : 'No inbound departures'}
-                </strong>
+                <div>
+                  <p className="panel-label">Inbound · Bowdoin</p>
+                  <strong className="panel-title">
+                    {primaryPredictions.length
+                      ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
+                      : 'No inbound departures'}
+                  </strong>
+                </div>
+                <button
+                  className="flip-button"
+                  onClick={() => setActiveCard('outbound')}
+                  title="Flip to Wonderland outbound"
+                >
+                  ↻
+                </button>
               </div>
-              <button
-                className="flip-button"
-                onClick={() => setActiveCard('outbound')}
-                title="Flip to Wonderland outbound"
-              >
-                Flip
-              </button>
-            </div>
-            {primaryPredictions.length ? (
-              <div className="list-frame">
-                <ul className="list">
-                {primaryPredictions.slice(0, 8).map((p) => (
-                    <li key={p.id} className="row">
-                      <div className="row-left">
-                        <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                        <div className="details">
-                          <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
-                          <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+              {primaryPredictions.length ? (
+                <div className="list-frame">
+                  <ul className="list">
+                    {primaryPredictions.slice(0, 8).map((p) => (
+                      <li key={p.id} className="row">
+                        <div className="row-left">
+                          <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                          <div className="details">
+                            <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
+                            <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="row-right">
-                        {p.routeId ? (
-                          <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                            {p.routeId}
-                          </span>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                 </ul>
-               </div>
+                        <div className="row-right">
+                          {p.routeId ? (
+                            <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                              {p.routeId}
+                            </span>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : (
                 <div className="empty primary-empty">Inbound timing settles soon.</div>
               )}
@@ -435,55 +446,47 @@ export default function App() {
                 <span className="panel-emoji" role="presentation">
                   ↩️
                 </span>
-              <div>
-                <p className="panel-label">Outbound · Wonderland</p>
-                <strong className="panel-title">Outbound timetable</strong>
+                <div>
+                  <p className="panel-label">Outbound · Wonderland</p>
+                  <strong className="panel-title">Outbound timetable</strong>
+                </div>
+                <button
+                  className="flip-button"
+                  onClick={() => setActiveCard('inbound')}
+                  title="Flip to Bowdoin inbound"
+                >
+                  ↻
+                </button>
               </div>
-              <button
-                className="flip-button"
-                onClick={() => setActiveCard('inbound')}
-                title="Flip to Bowdoin inbound"
-              >
-                Flip
-              </button>
-            </div>
-            {secondaryPredictions.length ? (
-              <div className="list-frame">
-                <ul className="list">
-                {secondaryPredictions.slice(0, 10).map((p) => (
-                    <li key={p.id} className="row">
-                      <div className="row-left">
-                        <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                        <div className="details">
-                          <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
-                          <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+              {secondaryPredictions.length ? (
+                <div className="list-frame">
+                  <ul className="list">
+                    {secondaryPredictions.slice(0, 10).map((p) => (
+                      <li key={p.id} className="row">
+                        <div className="row-left">
+                          <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                          <div className="details">
+                            <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
+                            <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="row-right">
-                        {p.routeId ? (
-                          <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                            {p.routeId}
-                          </span>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                        <div className="row-right">
+                          {p.routeId ? (
+                            <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                              {p.routeId}
+                            </span>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : (
                 <div className="empty secondary-empty">Outbound arrivals show up here once available.</div>
               )}
             </article>
           </div>
 
-          <div className="card-toggle">
-            <button
-              className="slide-button"
-              onClick={() => setActiveCard((prev) => (prev === 'inbound' ? 'outbound' : 'inbound'))}
-            >
-              {activeCard === 'inbound' ? 'View Wonderland (Outbound)' : 'Show Bowdoin (Inbound)'}
-            </button>
-          </div>
         </section>
 
         <section className="panel volume-panel">
