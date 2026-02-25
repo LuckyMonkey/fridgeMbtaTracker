@@ -87,35 +87,6 @@ const formatDuration = (deltaMs) => {
   return `${minutes}m ${paddedSeconds}s`;
 };
 
-const useMediaQuery = (query) => {
-  const [matches, setMatches] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia(query).matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const mediaQuery = window.matchMedia(query);
-    const handleChange = (event) => {
-      setMatches(event.matches);
-    };
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-    } else {
-      mediaQuery.addListener(handleChange);
-    }
-    return () => {
-      if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener('change', handleChange);
-      } else {
-        mediaQuery.removeListener(handleChange);
-      }
-    };
-  }, [query]);
-
-  return matches;
-};
-
 const LANG_COOKIE = 'mbta-lang';
 const DEFAULT_LANGUAGE = 'es';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -153,10 +124,8 @@ export default function App() {
   const [nowMs, setNowMs] = useState(Date.now());
   const [activeCard, setActiveCard] = useState('inbound');
   const [automationAction, setAutomationAction] = useState({ busy: false, error: '' });
-  const [mobileCard, setMobileCard] = useState('hero');
   const [passNotice, setPassNotice] = useState('');
   const [passLoading, setPassLoading] = useState('');
-  const isMobileLayout = useMediaQuery('(max-width: 720px)');
   const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
 
   const pollRef = useRef(null);
@@ -285,12 +254,6 @@ export default function App() {
       if (automationPollRef.current) clearInterval(automationPollRef.current);
     };
   }, [loadAutomationStatus]);
-
-  useEffect(() => {
-    if (isMobileLayout) {
-      setMobileCard('hero');
-    }
-  }, [isMobileLayout]);
 
   const predictions = Array.isArray(payload?.predictions) ? payload.predictions : [];
   const predictionsLive = useMemo(
@@ -474,8 +437,8 @@ const handleTrainPass = useCallback(
 );
 
 const automationStateKey = !automationStatus?.enabled ? 'disabled' : automationStatus.active ? 'active' : 'armed';
-  const automationStateLabel = languageText.automation.statuses[automationStateKey] || languageText.automation.statuses.disabled;
-  const automationStateClass = `status-${automationStateKey}`;
+const automationStateLabel = languageText.automation.statuses[automationStateKey] || languageText.automation.statuses.disabled;
+const automationStateClass = `status-${automationStateKey}`;
   const nextAutomationWindow = automationStatus?.nextWindow || null;
   const nextAutomationLabel = (() => {
     if (!nextAutomationWindow?.startAt) return '—';
@@ -519,183 +482,6 @@ const automationStateKey = !automationStatus?.enabled ? 'disabled' : automationS
       wakeLock?.release?.();
     };
   }, []);
-
-  const mobileSections = useMemo(() => {
-    const heroSection = {
-      id: 'hero',
-      label: languageText.walk.label,
-      render: () => (
-        <div className={`mobile-hero-card walk-${walkIndicator?.urgency || 'idle'}`}>
-          <span className="hero-icon" role="presentation">
-            🚆
-          </span>
-          <strong className="hero-title">{walkIndicator?.title || languageText.walk.idleTitle}</strong>
-          <p className="hero-subtitle">{walkIndicator?.subtitle || languageText.walk.idleSubtitle}</p>
-          <p className="hero-meta">
-            {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
-          </p>
-        </div>
-      ),
-    };
-
-    const inboundSection = {
-      id: 'inbound',
-      label: languageText.flashcards.inboundLabel,
-      render: () => (
-        <div className="mobile-card">
-          <div className="panel-heading">
-            <span className="panel-emoji" role="presentation">
-              ⬆️
-            </span>
-            <div>
-              <p className="panel-label">{languageText.flashcards.inboundLabel}</p>
-              <strong className="panel-title">
-                {annotatedPrimary.length
-                  ? `${languageText.flashcards.inboundNextPrefix} ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
-                  : languageText.flashcards.noDepartures}
-              </strong>
-            </div>
-          </div>
-          {renderPredictionList(annotatedPrimary, {
-            maxRows: 6,
-            emptyLabel: languageText.flashcards.noDepartures,
-            highlightId: nextAccessibleId,
-          })}
-        </div>
-      ),
-    };
-
-    const outboundSection = {
-      id: 'outbound',
-      label: languageText.flashcards.outboundLabel,
-      render: () => (
-        <div className="mobile-card">
-          <div className="panel-heading">
-            <span className="panel-emoji" role="presentation">
-              ↩️
-            </span>
-            <div>
-              <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
-              <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
-            </div>
-          </div>
-          {renderPredictionList(annotatedSecondary, {
-            maxRows: 6,
-            emptyLabel: languageText.flashcards.outboundEmpty,
-          })}
-        </div>
-      ),
-    };
-
-    const volumeSection = {
-      id: 'volume',
-      label: languageText.volumePanel.label,
-      render: () => (
-        <div className="mobile-card">
-          <div className="panel-heading">
-            <span className="panel-emoji" role="presentation">
-              🔊
-            </span>
-            <div>
-              <p className="panel-label">{languageText.volumePanel.label}</p>
-              <strong className="panel-title">{automationStateLabel}</strong>
-            </div>
-          </div>
-          <div className="volume-details">
-            <div className="detail-line">
-              {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
-            </div>
-            <div className="detail-line">
-              {languageText.volumePanel.statusLabel}:{' '}
-              <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
-            </div>
-          </div>
-            <div className="volume-actions">
-              <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
-                {languageText.volumePanel.raise}
-              </button>
-              <button
-                className="action-button"
-                disabled={automationAction.busy}
-                onClick={() => triggerAutomation('restore')}
-              >
-                {languageText.volumePanel.restore}
-              </button>
-            </div>
-            <div className="pass-actions">
-              <button
-                type="button"
-                className="pass-button"
-                onClick={() => handleTrainPass('bowdoin', annotatedPrimary)}
-                disabled={!annotatedPrimary.length || Boolean(passLoading)}
-              >
-                BOWDOIN TRAIN PASSING
-              </button>
-              <button
-                type="button"
-                className="pass-button"
-                onClick={() => handleTrainPass('wonderland', annotatedSecondary)}
-                disabled={!annotatedSecondary.length || Boolean(passLoading)}
-              >
-                WONDERLAND TRAIN PASSING
-              </button>
-            </div>
-            {passNotice ? <p className="pass-note">{passNotice}</p> : null}
-            {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
-        </div>
-      ),
-    };
-
-    return [heroSection, inboundSection, outboundSection, volumeSection];
-  }, [
-    automationAction,
-    automationStateClass,
-    automationStateLabel,
-    annotatedPrimary,
-    annotatedSecondary,
-    language,
-    languageText,
-    nextAccessibleId,
-    nextAutomationLabel,
-    refreshIntervalMs,
-    renderPredictionList,
-    walkIndicator,
-    walkMinutesLabel,
-  ]);
-
-  const mobileSectionIndex = mobileSections.findIndex((section) => section.id === mobileCard);
-  const normalizedMobileSectionIndex = mobileSectionIndex >= 0 ? mobileSectionIndex : 0;
-  const activeMobileSection = mobileSections[normalizedMobileSectionIndex];
-  const rotateMobileSection = useCallback(
-    (delta) => {
-      if (!mobileSections.length) return;
-      const nextIndex =
-        (normalizedMobileSectionIndex + delta + mobileSections.length) % mobileSections.length;
-      setMobileCard(mobileSections[nextIndex].id);
-    },
-    [mobileSections, normalizedMobileSectionIndex]
-  );
-  const touchStartX = useRef(null);
-
-  const handleTouchStart = useCallback((event) => {
-    touchStartX.current = event.touches ? event.touches[0]?.clientX : event.clientX;
-  }, []);
-
-  const handleTouchEnd = useCallback(
-    (event) => {
-      const endX = event.changedTouches ? event.changedTouches[0]?.clientX : event.clientX;
-      if (touchStartX.current === null || endX === undefined) return;
-      const delta = endX - touchStartX.current;
-      const threshold = 40;
-      if (delta > threshold) {
-        rotateMobileSection(-1);
-      } else if (delta < -threshold) {
-        rotateMobileSection(1);
-      }
-      touchStartX.current = null;
-    },
-    [rotateMobileSection]
-  );
 
   return (
     <div className="page" style={{ '--mbta-accent': dominantColor }}>
@@ -772,44 +558,7 @@ const automationStateKey = !automationStatus?.enabled ? 'disabled' : automationS
           </div>
         ) : null}
 
-        {isMobileLayout ? (
-          <section className="mobile-shell">
-            <button
-              type="button"
-              className="mobile-lang-chip mobile-lang-fixed"
-              onClick={toggleLanguage}
-              aria-pressed={language === 'es'}
-            >
-              {language === 'es' ? 'ES' : 'EN'}
-            </button>
-            <div
-              className="mobile-flashcard"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
-              {activeMobileSection?.render()}
-            </div>
-            <div className="mobile-arrow-controls">
-              <button
-                type="button"
-                className="mobile-arrow"
-                onClick={() => rotateMobileSection(-1)}
-                aria-label="Previous view"
-              >
-                ◀️
-              </button>
-              <button
-                type="button"
-                className="mobile-arrow"
-                onClick={() => rotateMobileSection(1)}
-                aria-label="Next view"
-              >
-                ▶️
-              </button>
-            </div>
-          </section>
-        ) : (
-          <>
+        <>
             <section className="indicator-row">
               <section className={`panel walk-panel walk-${walkIndicator?.urgency || 'idle'}`}>
                 <div className="panel-heading">
@@ -987,8 +736,7 @@ const automationStateKey = !automationStatus?.enabled ? 'disabled' : automationS
               </div>
               {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
             </section>
-          </>
-        )}
+        </>
 
 
       </main>
