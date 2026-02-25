@@ -218,10 +218,31 @@ export default function App() {
   const walkBufferMs = walkTimeMinutes * 60_000;
   const lastUpdated = payload?.fetchedAt ? new Date(payload?.fetchedAt).toLocaleTimeString() : '—';
 
+  const matchesHeadsign = (prediction, keyword) => {
+    const haystack = `${prediction.headsign || ''} ${prediction.routeName || ''}`.toLowerCase();
+    return haystack.includes(keyword.toLowerCase());
+  };
+
   const inboundPredictions = predictionsLive.filter((p) => p.directionId === 1);
   const outboundPredictions = predictionsLive.filter((p) => p.directionId === 0);
-  const primaryPredictions = inboundPredictions;
-  const secondaryPredictions = outboundPredictions;
+  const bowdoinPredictions = predictionsLive.filter((p) => matchesHeadsign(p, 'bowdoin'));
+  const wonderlandPredictions = predictionsLive.filter((p) => matchesHeadsign(p, 'wonderland'));
+  const primaryPredictions = bowdoinPredictions.length ? bowdoinPredictions : inboundPredictions;
+  const secondaryPredictions = wonderlandPredictions.length ? wonderlandPredictions : outboundPredictions;
+  const checklist = useMemo(
+    () => ({
+      inbound: primaryPredictions.some((p) => matchesHeadsign(p, 'bowdoin')),
+      outbound: secondaryPredictions.some((p) => matchesHeadsign(p, 'wonderland')),
+    }),
+    [primaryPredictions, secondaryPredictions]
+  );
+  const integrityOk = checklist.inbound && checklist.outbound;
+
+  useEffect(() => {
+    if (!integrityOk) {
+      console.warn('Prediction direction integrity failure', checklist);
+    }
+  }, [integrityOk, checklist]);
 
   const walkIndicator = useMemo(() => {
     const sourceCandidates = primaryPredictions;
@@ -322,6 +343,17 @@ export default function App() {
             <span className="status-value">{lastUpdated}</span>
           </div>
         </section>
+
+        {!integrityOk ? (
+          <div className="alert check-alert">
+            {[
+              !checklist.inbound && 'Inbound view no longer shows Bowdoin trains.',
+              !checklist.outbound && 'Outbound view no longer shows Wonderland trains.',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          </div>
+        ) : null}
 
         <section className="indicator-row">
           <section className={`panel walk-panel walk-${walkIndicator?.urgency || 'idle'}`}>
