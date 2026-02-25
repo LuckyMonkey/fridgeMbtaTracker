@@ -19,6 +19,7 @@ services:
       - MONGO_URL=mongodb://mongo:27017/mbta
       # Optional: set in an .env file (MBTA recommends using an API key for higher rate limits)
       - MBTA_API_KEY=${MBTA_API_KEY:-}
+      - APP_VERSION=${APP_VERSION:-0.1.0}
       - DEFAULT_STOP_ID=${DEFAULT_STOP_ID:-place-sdmnl}
       - DEFAULT_STOP_NAME=${DEFAULT_STOP_NAME:-Suffolk Downs}
       - WALK_TIME_MINUTES=${WALK_TIME_MINUTES:-4}
@@ -62,6 +63,7 @@ services:
       - PORT=5173
       - VITE_PROXY_TARGET=http://api:4000
       - VITE_WALK_MINUTES=${WALK_TIME_MINUTES:-4}
+      - VITE_APP_VERSION=${VITE_APP_VERSION:-0.1.0}
     ports:
       - "5174:5173"
     labels:

@@ -4,6 +4,7 @@ const cors = require('cors');
 const { fetchStopPredictions } = require('./mbta');
 const { connectMongo, ensureIndexes, upsertDefaultStop } = require('./store');
 const { createVolumeAutomation } = require('./automation');
+const APP_VERSION = process.env.APP_VERSION || '0.1.0';
 
 const toPositiveInt = (value, fallback, min = 1) => {
   const parsed = Number(value);
@@ -340,6 +341,13 @@ app.get('/api/config', (_req, res) => {
     cacheTtlMs: PREDICTIONS_TTL_MS,
     pollIntervalMs: PREDICTIONS_POLL_MS,
     cacheStaleMs: PREDICTIONS_STALE_MS,
+  });
+});
+
+app.get('/api/version', (_req, res) => {
+  res.json({
+    version: APP_VERSION,
+    source: 'mbta-tracker',
   });
 });
 

@@ -38,6 +38,23 @@ body {
   background: var(--panel);
 }
 
+.header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.version-chip {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-dark);
+  color: #1f2937;
+  font-weight: 700;
+}
+
 .brand {
   display: grid;
   gap: 6px;

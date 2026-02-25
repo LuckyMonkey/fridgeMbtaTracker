@@ -9,6 +9,7 @@ Live Suffolk Downs timing wrapped in a focused inbound first UI that treats Bowd
 - **Smart timing guidance** – leave-time message includes seconds, compares arrivals to the configured walk buffer, and marks trains arriving faster than you can reach the stop as “missed.” The next catchable train is highlighted and stays in sync via a 30 second polling cadence.
 - **Volume boost automation** – the dedicated bottom panel keeps household automation in view without crowding the timetable.
 - **Flip-to-outbound control** – a lightweight emoji icon in the top-right of the timetable panel toggles the outbound (Wonderland) list via a smooth accordion-style transition so only one card shows at a time.
+- **Version visibility** – the header now shows `vX.Y.Z` in the upper-right so you can see what build is live; for automated checks scrape `/api/version` to confirm the deployed version and correlate with the badge printed on the page.
 
 ## 🧭 UI behavior highlights
 
@@ -55,6 +56,8 @@ docker compose up -d --build
 | `PREDICTIONS_STALE_MS` | `300000` | How long stale data can be served if the API lags |
 | `PREDICTIONS_TIMEOUT_MS` | `8000` | MBTA request timeout |
 | `PREDICTIONS_LIMIT` | `16` | Number of predictions requested |
+| `VITE_APP_VERSION` | `0.1.0` | Injected into the client to display the running version badge |
+| `APP_VERSION` | `0.1.0` | Propagated through the API so `/api/version` returns it for curl checks |
 
 ### Automation variables
 
@@ -81,6 +84,8 @@ Automation behaviours:
 ## 🚏 Train pass logging
 
 Press the **BOWDOIN TRAIN PASSING** or **WONDERLAND TRAIN PASSING** buttons in the volume panel whenever a train rolls past your apartment. Each tap records the button-press time versus the API prediction, storing the difference in Mongo so the service can learn the average offset for future arrivals.
+
+To double-check your deployed build, `curl http://fridge.local:4001/api/version` (or call it inside the API container) and compare the returned `version` field with the badge in the top-right of the UI.
 
 Manual trigger test:
 

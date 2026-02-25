@@ -127,6 +127,7 @@ export default function App() {
   const [passNotice, setPassNotice] = useState('');
   const [passLoading, setPassLoading] = useState('');
   const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
+  const appVersion = import.meta.env.VITE_APP_VERSION || '0.1.0';
 
   const pollRef = useRef(null);
   const automationPollRef = useRef(null);
@@ -495,31 +496,34 @@ const automationStateClass = `status-${automationStateKey}`;
           <p className="subtitle">{languageText.subtitle}</p>
         </div>
 
-        <div className="controls">
-          <label className="control">
-            <span>{languageText.controls.stop}</span>
-            <select value={selectedStopId} onChange={(e) => setSelectedStopId(e.target.value)}>
-              {stops.map((s) => (
-                <option key={s.stopId} value={s.stopId}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="header-meta">
+          <span className="version-chip">v{appVersion}</span>
+          <div className="controls">
+            <label className="control">
+              <span>{languageText.controls.stop}</span>
+              <select value={selectedStopId} onChange={(e) => setSelectedStopId(e.target.value)}>
+                {stops.map((s) => (
+                  <option key={s.stopId} value={s.stopId}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <button
-            className="button"
-            onClick={() => selectedStopId && loadPredictions(selectedStopId, { force: true })}
-            disabled={!selectedStopId || loading}
-          >
-            {languageText.controls.refresh}
-          </button>
-
-          <div className="language-control">
-            <span>{languageText.controls.languageLabel}</span>
-            <button className="lang-toggle" type="button" onClick={toggleLanguage} aria-pressed={language === 'en'}>
-              {language === 'es' ? languageText.controls.switchToEnglish : languageText.controls.switchToSpanish}
+            <button
+              className="button"
+              onClick={() => selectedStopId && loadPredictions(selectedStopId, { force: true })}
+              disabled={!selectedStopId || loading}
+            >
+              {languageText.controls.refresh}
             </button>
+
+            <div className="language-control">
+              <span>{languageText.controls.languageLabel}</span>
+              <button className="lang-toggle" type="button" onClick={toggleLanguage} aria-pressed={language === 'en'}>
+                {language === 'es' ? languageText.controls.switchToEnglish : languageText.controls.switchToSpanish}
+              </button>
+            </div>
           </div>
         </div>
       </header>
