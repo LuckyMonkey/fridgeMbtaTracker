@@ -3,10 +3,10 @@
   --bg: #ffffff;
   --panel: #ffffff;
   --text: #0b0f17;
-  --border: #1f2937;
+  --border: #8f99ad;
   --muted: #4b5563;
   --accent: #003da5;
-  --shadow: rgba(0, 0, 0, 0.06);
+  --shadow: rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -86,12 +86,6 @@ h1 {
   color: var(--muted);
 }
 
-.line-dot {
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
-}
-
 select {
   width: min(360px, 74vw);
   border: 1px solid var(--border);
@@ -103,21 +97,6 @@ select {
 }
 
 .button {
-  border: 1px solid var(--border);
-  background: #1a1a1a;
-  color: #fff;
-  padding: 12px 18px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.button {
-  border-radius: 12px;
   border: 1px solid var(--border);
   background: #1a1a1a;
   color: #fff;
@@ -177,13 +156,51 @@ select {
   gap: 16px;
 }
 
+.outbound-control {
+  display: flex;
+  justify-content: center;
+}
+
+.slide-button {
+  border: 2px solid var(--border);
+  background: #f0f4ff;
+  color: #111;
+  padding: 14px 22px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 10px 30px -20px var(--shadow);
+}
+
+.outbound-drawer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.45s ease;
+}
+
+.outbound-drawer--open {
+  max-height: 1000px;
+}
+
 .panel {
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   padding: 18px;
   background: var(--panel);
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: 0 20px 50px -30px var(--shadow);
+}
+
+.walk-panel {
+  min-height: 180px;
+  justify-content: space-between;
+}
+
+.walk-panel .panel-title {
+  font-size: clamp(28px, 5vw, 38px);
 }
 
 .panel-heading {
@@ -336,6 +353,39 @@ select {
   border: 1px solid var(--border);
   font-size: 12px;
   color: #7b1f1f;
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 14px;
+  }
+
+  .header,
+  .status-block,
+  .panel {
+    border-width: 1px;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button,
+  .slide-button,
+  .action-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .indicator-row {
+    grid-template-columns: 1fr;
+  }
+
+  .predictions-section,
+  .outbound-drawer {
+    width: 100%;
+  }
 }
 
 .list {

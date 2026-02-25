@@ -380,31 +380,30 @@ export default function App() {
           </section>
         </section>
 
-        <div className="outbound-toggle">
+        <div className="outbound-control">
           <button
-            className="toggle-button"
+            className="slide-button"
             onClick={() => setShowOutbound((prev) => !prev)}
             aria-expanded={showOutbound}
           >
-            {showOutbound ? '⇦ Hide Wonderland timetable' : '⇨ Reveal Wonderland timetable'}
+            {showOutbound ? '⇦ Close Wonderland timetable (Outbound)' : '⇨ View Wonderland timetable (Outbound)'}
           </button>
         </div>
 
-        {showOutbound ? (
+        <div className={`outbound-drawer ${showOutbound ? 'outbound-drawer--open' : ''}`} aria-hidden={!showOutbound}>
           <section className="panel prediction-panel prediction-panel--secondary">
             <div className="panel-heading">
               <span className="panel-emoji" role="presentation">
                 ↩️
               </span>
               <div>
-                <p className="panel-label">Outbound · Wonderland</p>
-                <strong className="panel-title">Reference only</strong>
+                <p className="panel-label">Wonderland · Outbound</p>
+                <strong className="panel-title">Outbound timetable</strong>
               </div>
             </div>
-            <p className="panel-hint">Click the arrow again to hide this view.</p>
             {outboundPredictions.length ? (
               <ul className="list">
-                {outboundPredictions.slice(0, 8).map((p) => (
+                {outboundPredictions.slice(0, 10).map((p) => (
                   <li key={p.id} className="row">
                     <div className="row-left">
                       <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
@@ -424,10 +423,10 @@ export default function App() {
                 ))}
               </ul>
             ) : (
-              <div className="empty secondary-empty">No outbound predictions right now.</div>
+              <div className="empty secondary-empty">Outbound arrivals show up here once available.</div>
             )}
           </section>
-        ) : null}
+        </div>
 
         <section className="panel volume-panel">
           <div className="panel-heading">
