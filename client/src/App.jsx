@@ -87,6 +87,11 @@ const formatRelative = (deltaMs) => {
   return `${Math.ceil(deltaMs / 60_000)} min`;
 };
 
+const isBowdoinDestination = (prediction) => {
+  const label = (prediction.headsign || prediction.routeName || prediction.routeId || '').toLowerCase();
+  return label.includes('bowdoin');
+};
+
 export default function App() {
   const [stops, setStops] = useState([]);
   const [selectedStopId, setSelectedStopId] = useState('');
@@ -216,7 +221,9 @@ export default function App() {
   const walkIndicator = useMemo(() => {
     const candidates = predictions
       .map((p) => ({ ...p, eventMs: getPredictionEventMs(p) }))
-      .filter((p) => p.directionId === 1 && p.eventMs !== null && p.eventMs >= nowMs - 90_000)
+      .filter(
+        (p) => p.directionId === 1 && isBowdoinDestination(p) && p.eventMs !== null && p.eventMs >= nowMs - 90_000
+      )
       .sort((a, b) => a.eventMs - b.eventMs);
 
     const next = candidates[0];
