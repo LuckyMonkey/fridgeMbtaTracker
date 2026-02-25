@@ -86,6 +86,25 @@ h1 {
   color: var(--muted);
 }
 
+.language-control {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: var(--muted);
+}
+
+.lang-toggle {
+  border: 1px solid var(--border);
+  background: #f6f6f6;
+  color: var(--text);
+  padding: 10px 14px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
 select {
   width: min(360px, 74vw);
   border: 1px solid var(--border);

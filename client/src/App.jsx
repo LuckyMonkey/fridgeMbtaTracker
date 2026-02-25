@@ -86,6 +86,153 @@ const formatDuration = (deltaMs) => {
   return `${minutes}m ${paddedSeconds}s`;
 };
 
+const LANG_COOKIE = 'mbta-lang';
+const DEFAULT_LANGUAGE = 'es';
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+const readLanguageCookie = () => {
+  if (typeof document === 'undefined') return null;
+  return document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith(`${LANG_COOKIE}=`))
+    ?.split('=')[1];
+};
+
+const writeLanguageCookie = (value) => {
+  if (typeof document === 'undefined') return;
+  if (!value) {
+    document.cookie = `${LANG_COOKIE}=;max-age=0;path=/`;
+    return;
+  }
+  document.cookie = `${LANG_COOKIE}=${value};max-age=${COOKIE_MAX_AGE_SECONDS};path=/`;
+};
+
+const TRANSLATIONS = {
+  en: {
+    brandTitle: 'MBTA Tracker',
+    subtitle: 'Inbound focus · Bowdoin bound',
+    controls: {
+      stop: 'Stop',
+      refresh: 'Refresh',
+      languageLabel: 'Language',
+      switchToEnglish: 'Switch to English',
+      switchToSpanish: 'Switch to Spanish',
+    },
+    status: {
+      selected: 'Selected stop',
+      updated: 'Last update',
+    },
+    alerts: {
+      error: 'Error',
+      automation: 'Automation action error',
+      inboundIntegrity: 'Inbound view no longer shows Bowdoin trains.',
+      outboundIntegrity: 'Outbound view no longer shows Wonderland trains.',
+    },
+    walk: {
+      label: 'Bowdoin departure',
+      idleTitle: 'Waiting for timing',
+      idleSubtitle: 'No inbound predictions yet.',
+      trainIn: 'train in',
+      leaveNow: 'Leave now',
+      leaveSoon: 'Leave in',
+      walkBufferText: (walkMinutes, refreshSeconds) => `Walk buffer: ${walkMinutes} min · API refresh ${refreshSeconds}s`,
+    },
+    flashcards: {
+      inboundLabel: 'Inbound · Bowdoin',
+      inboundNextPrefix: 'Next',
+      noDepartures: 'No inbound departures',
+      outboundLabel: 'Outbound · Wonderland',
+      outboundTitle: 'Outbound timetable',
+      outboundEmpty: 'Outbound arrivals show up here once available.',
+      primaryEmpty: 'Inbound timing settles soon.',
+      flipToOutboundTitle: 'Flip to Wonderland outbound',
+      flipToInboundTitle: 'Flip to Bowdoin inbound',
+      missedSuffix: ' (missed)',
+    },
+    volumePanel: {
+      label: 'Volume boost',
+      statusLabel: 'Status',
+      nextTriggerLabel: 'Next trigger',
+      raise: 'Raise',
+      restore: 'Restore',
+    },
+    automation: {
+      modes: {
+        outbound_arrival: 'Wonderland approach',
+        inbound_departure: 'Bowdoin post-departure',
+      },
+      statuses: {
+        disabled: 'Disabled',
+        active: 'Active',
+        armed: 'Armed',
+      },
+      upcomingIn: 'in',
+    },
+  },
+  es: {
+    brandTitle: 'MBTA Tracker',
+    subtitle: 'Enfoque entrante · rumbo a Bowdoin',
+    controls: {
+      stop: 'Parada',
+      refresh: 'Actualizar',
+      languageLabel: 'Idioma',
+      switchToEnglish: 'Cambiar a inglés',
+      switchToSpanish: 'Cambiar a español',
+    },
+    status: {
+      selected: 'Parada seleccionada',
+      updated: 'Última actualización',
+    },
+    alerts: {
+      error: 'Error',
+      automation: 'Error de automatización',
+      inboundIntegrity: 'La vista entrante ya no muestra trenes a Bowdoin.',
+      outboundIntegrity: 'La vista saliente ya no muestra trenes a Wonderland.',
+    },
+    walk: {
+      label: 'Salida a Bowdoin',
+      idleTitle: 'Esperando tiempos',
+      idleSubtitle: 'Aún no hay predicciones entrantes.',
+      trainIn: 'tren en',
+      leaveNow: 'Sal ahora',
+      leaveSoon: 'Sal en',
+      walkBufferText: (walkMinutes, refreshSeconds) =>
+        `Buffer de caminata: ${walkMinutes} min · actualización API cada ${refreshSeconds}s`,
+    },
+    flashcards: {
+      inboundLabel: 'Entrante · Bowdoin',
+      inboundNextPrefix: 'Siguiente',
+      noDepartures: 'Sin salidas entrantes',
+      outboundLabel: 'Saliente · Wonderland',
+      outboundTitle: 'Programa de salida',
+      outboundEmpty: 'Las salidas a Wonderland aparecen aquí cuando haya datos.',
+      primaryEmpty: 'Los tiempos entrantes llegan pronto.',
+      flipToOutboundTitle: 'Mostrar salidas a Wonderland',
+      flipToInboundTitle: 'Mostrar salidas a Bowdoin',
+      missedSuffix: ' (perdido)',
+    },
+    volumePanel: {
+      label: 'Aumento de volumen',
+      statusLabel: 'Estado',
+      nextTriggerLabel: 'Próximo disparo',
+      raise: 'Subir',
+      restore: 'Restaurar',
+    },
+    automation: {
+      modes: {
+        outbound_arrival: 'Aproximación a Wonderland',
+        inbound_departure: 'Salida de Bowdoin',
+      },
+      statuses: {
+        disabled: 'Desactivado',
+        active: 'Activo',
+        armed: 'Preparado',
+      },
+      upcomingIn: 'en',
+    },
+  },
+};
+
 export default function App() {
   const [stops, setStops] = useState([]);
   const [selectedStopId, setSelectedStopId] = useState('');
@@ -98,9 +245,22 @@ export default function App() {
   const [nowMs, setNowMs] = useState(Date.now());
   const [activeCard, setActiveCard] = useState('inbound');
   const [automationAction, setAutomationAction] = useState({ busy: false, error: '' });
+  const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
 
   const pollRef = useRef(null);
   const automationPollRef = useRef(null);
+
+  const toggleLanguage = useCallback(() => {
+    setLanguage((prev) => {
+      const nextLang = prev === 'es' ? 'en' : 'es';
+      if (nextLang === 'en') {
+        writeLanguageCookie('en');
+      } else {
+        writeLanguageCookie('');
+      }
+      return nextLang;
+    });
+  }, []);
 
   const selectedStop = useMemo(() => stops.find((s) => s.stopId === selectedStopId) || null, [stops, selectedStopId]);
 
@@ -261,6 +421,7 @@ export default function App() {
   );
   const integrityOk = checklist.inbound && checklist.outbound;
   const nextAccessibleId = annotatedPrimary.find((p) => p.isCatchable)?.id || null;
+  const languageText = TRANSLATIONS[language] || TRANSLATIONS[DEFAULT_LANGUAGE];
 
   useEffect(() => {
     if (!integrityOk) {
@@ -269,6 +430,7 @@ export default function App() {
   }, [integrityOk, checklist]);
 
   const walkIndicator = useMemo(() => {
+    const text = TRANSLATIONS[language] || TRANSLATIONS[DEFAULT_LANGUAGE];
     const candidates = annotatedPrimary.filter((p) => p.eventMs !== null);
     const accessible = candidates.filter((p) => p.isCatchable);
     const next = accessible[0] || candidates[0];
@@ -282,36 +444,44 @@ export default function App() {
     if (leaveDeltaMs <= 0) {
       return {
         urgency: 'urgent',
-        title: 'Leave now',
-        subtitle: `${directionLabel} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
+        title: text.walk.leaveNow,
+        subtitle: `${directionLabel} · ${headsign} · ${text.walk.trainIn} ${formatDuration(eventDeltaMs)}`,
       };
     }
 
     if (leaveDeltaMs < MIN_MISS_MS) {
       return {
         urgency: 'soon',
-        title: `Leave in ${formatDuration(leaveDeltaMs)}`,
-        subtitle: `${directionLabel} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
+        title: `${text.walk.leaveSoon} ${formatDuration(leaveDeltaMs)}`,
+        subtitle: `${directionLabel} · ${headsign} · ${text.walk.trainIn} ${formatDuration(eventDeltaMs)}`,
       };
     }
 
     return {
       urgency: 'normal',
-      title: `Leave in ${formatDuration(leaveDeltaMs)}`,
-      subtitle: `${directionLabel} · ${headsign} · train in ${formatDuration(eventDeltaMs)}`,
+      title: `${text.walk.leaveSoon} ${formatDuration(leaveDeltaMs)}`,
+      subtitle: `${directionLabel} · ${headsign} · ${text.walk.trainIn} ${formatDuration(eventDeltaMs)}`,
     };
-  }, [annotatedPrimary, nowMs, walkBufferMs]);
+  }, [annotatedPrimary, language, nowMs, walkBufferMs]);
 
-  const automationStateLabel = !automationStatus?.enabled ? 'Disabled' : automationStatus.active ? 'Active' : 'Armed';
-  const automationStateClass = !automationStatus?.enabled ? 'status-off' : automationStatus.active ? 'status-active' : 'status-armed';
+  const automationStateKey = !automationStatus?.enabled ? 'disabled' : automationStatus.active ? 'active' : 'armed';
+  const automationStateLabel = languageText.automation.statuses[automationStateKey] || languageText.automation.statuses.disabled;
+  const automationStateClass = `status-${automationStateKey}`;
   const nextAutomationWindow = automationStatus?.nextWindow || null;
   const nextAutomationLabel = (() => {
     if (!nextAutomationWindow?.startAt) return '—';
     const modeLabel =
-      nextAutomationWindow.mode === 'outbound_arrival' ? 'Wonderland approach' : 'Bowdoin post-departure';
+      languageText.automation.modes[nextAutomationWindow.mode] ||
+      (nextAutomationWindow.mode === 'outbound_arrival'
+        ? 'Wonderland approach'
+        : nextAutomationWindow.mode === 'inbound_departure'
+        ? 'Bowdoin post-departure'
+        : nextAutomationWindow.mode || 'Event');
     const deltaMs = Date.parse(nextAutomationWindow.startAt) - nowMs;
     const when = formatRelative(deltaMs);
-    return when === '—' ? '—' : `${modeLabel} in ${when}`;
+    return when === '—'
+      ? '—'
+      : `${modeLabel} ${languageText.automation.upcomingIn} ${when}`;
   })();
 
   return (
@@ -322,13 +492,13 @@ export default function App() {
             <span className="line-dot" />
             <span className="line-name">{dominantRouteId}</span>
           </div>
-          <h1>MBTA Tracker</h1>
-          <p className="subtitle">Inbound focus · Bowdoin bound</p>
+          <h1>{languageText.brandTitle}</h1>
+          <p className="subtitle">{languageText.subtitle}</p>
         </div>
 
         <div className="controls">
           <label className="control">
-            <span>Stop</span>
+            <span>{languageText.controls.stop}</span>
             <select value={selectedStopId} onChange={(e) => setSelectedStopId(e.target.value)}>
               {stops.map((s) => (
                 <option key={s.stopId} value={s.stopId}>
@@ -343,24 +513,37 @@ export default function App() {
             onClick={() => selectedStopId && loadPredictions(selectedStopId, { force: true })}
             disabled={!selectedStopId || loading}
           >
-            Refresh
+            {languageText.controls.refresh}
           </button>
+
+          <div className="language-control">
+            <span>{languageText.controls.languageLabel}</span>
+            <button className="lang-toggle" type="button" onClick={toggleLanguage} aria-pressed={language === 'en'}>
+              {language === 'es' ? languageText.controls.switchToEnglish : languageText.controls.switchToSpanish}
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="content">
-        {error ? <div className="alert error">Error: {error}</div> : null}
+        {error ? (
+          <div className="alert error">
+            {languageText.alerts.error}: {error}
+          </div>
+        ) : null}
         {automationStatus?.lastActionError ? (
-          <div className="alert error">Automation action error: {automationStatus.lastActionError}</div>
+          <div className="alert error">
+            {languageText.alerts.automation}: {automationStatus.lastActionError}
+          </div>
         ) : null}
 
         <section className="status-row">
           <div className="status-block">
-            <span className="status-label">Selected stop</span>
+            <span className="status-label">{languageText.status.selected}</span>
             <span className="status-value">{selectedStop ? selectedStop.name : '—'}</span>
           </div>
           <div className="status-block">
-            <span className="status-label">Last update</span>
+            <span className="status-label">{languageText.status.updated}</span>
             <span className="status-value">{lastUpdated}</span>
           </div>
         </section>
@@ -368,8 +551,8 @@ export default function App() {
         {!integrityOk ? (
           <div className="alert check-alert">
             {[
-              !checklist.inbound && 'Inbound view no longer shows Bowdoin trains.',
-              !checklist.outbound && 'Outbound view no longer shows Wonderland trains.',
+              !checklist.inbound && languageText.alerts.inboundIntegrity,
+              !checklist.outbound && languageText.alerts.outboundIntegrity,
             ]
               .filter(Boolean)
               .join(' ')}
@@ -383,13 +566,17 @@ export default function App() {
                 🚶
               </span>
               <div>
-                <p className="panel-label">Bowdoin departure</p>
-                <strong className="panel-title">{walkIndicator?.title || 'Waiting for timing'}</strong>
+                <p className="panel-label">{languageText.walk.label}</p>
+                <strong className="panel-title">
+                  {walkIndicator?.title || languageText.walk.idleTitle}
+                </strong>
               </div>
             </div>
-            <p className="panel-subtitle">{walkIndicator?.subtitle || 'No inbound predictions yet.'}</p>
+            <p className="panel-subtitle">
+              {walkIndicator?.subtitle || languageText.walk.idleSubtitle}
+            </p>
             <p className="panel-meta">
-              Walk buffer: {walkMinutesLabel} min · API refresh {Math.round(refreshIntervalMs / 1000)}s
+              {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
             </p>
           </section>
         </section>
@@ -400,34 +587,36 @@ export default function App() {
               className={`flashcard flashcard--inbound ${activeCard === 'inbound' ? 'flashcard--active' : ''}`}
               aria-hidden={activeCard !== 'inbound'}
             >
-              <div className="panel-heading">
-                <span className="panel-emoji" role="presentation">
-                  ⬆️
-                </span>
-                <div>
-                  <p className="panel-label">Inbound · Bowdoin</p>
-                  <strong className="panel-title">
-                    {annotatedPrimary.length
-                      ? `Next ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
-                      : 'No inbound departures'}
-                  </strong>
-                </div>
-                <button
-                  className="flip-button"
-                  onClick={() => setActiveCard('outbound')}
-                  title="Flip to Wonderland outbound"
-                >
-                  ↻
-                </button>
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                ⬆️
+              </span>
+              <div>
+                <p className="panel-label">{languageText.flashcards.inboundLabel}</p>
+                <strong className="panel-title">
+                  {annotatedPrimary.length
+                    ? `${languageText.flashcards.inboundNextPrefix} ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
+                    : languageText.flashcards.noDepartures}
+                </strong>
               </div>
-              {annotatedPrimary.length ? (
-                <div className="list-frame">
-                  <ul className="list">
-                    {annotatedPrimary.slice(0, 8).map((p) => {
-                      const classes = ['row', p.isMissed ? 'row--missed' : '', p.id === nextAccessibleId ? 'row--next' : '']
-                        .filter(Boolean)
-                        .join(' ');
-                      const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${p.isMissed ? ' (missed)' : ''}`;
+              <button
+                className="flip-button"
+                onClick={() => setActiveCard('outbound')}
+                title={languageText.flashcards.flipToOutboundTitle}
+              >
+                ↻
+              </button>
+            </div>
+            {annotatedPrimary.length ? (
+              <div className="list-frame">
+                <ul className="list">
+                  {annotatedPrimary.slice(0, 8).map((p) => {
+                    const classes = ['row', p.isMissed ? 'row--missed' : '', p.id === nextAccessibleId ? 'row--next' : '']
+                      .filter(Boolean)
+                      .join(' ');
+                    const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${
+                      p.isMissed ? languageText.flashcards.missedSuffix : ''
+                    }`;
                       return (
                         <li key={p.id} className={classes}>
                           <div className="row-left">
@@ -450,7 +639,7 @@ export default function App() {
                   </ul>
                 </div>
               ) : (
-                <div className="empty primary-empty">Inbound timing settles soon.</div>
+                <div className="empty primary-empty">{languageText.flashcards.primaryEmpty}</div>
               )}
             </article>
 
@@ -463,13 +652,13 @@ export default function App() {
                   ↩️
                 </span>
                 <div>
-                  <p className="panel-label">Outbound · Wonderland</p>
-                  <strong className="panel-title">Outbound timetable</strong>
+                  <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
+                  <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
                 </div>
                 <button
                   className="flip-button"
                   onClick={() => setActiveCard('inbound')}
-                  title="Flip to Bowdoin inbound"
+                  title={languageText.flashcards.flipToInboundTitle}
                 >
                   ↻
                 </button>
@@ -479,7 +668,9 @@ export default function App() {
                   <ul className="list">
                     {annotatedSecondary.slice(0, 10).map((p) => {
                       const classes = ['row', p.isMissed ? 'row--missed' : ''].filter(Boolean).join(' ');
-                      const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${p.isMissed ? ' (missed)' : ''}`;
+                      const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${
+                        p.isMissed ? languageText.flashcards.missedSuffix : ''
+                      }`;
                       return (
                         <li key={p.id} className={classes}>
                           <div className="row-left">
@@ -502,7 +693,7 @@ export default function App() {
                   </ul>
                 </div>
               ) : (
-                <div className="empty secondary-empty">Outbound arrivals show up here once available.</div>
+                <div className="empty secondary-empty">{languageText.flashcards.outboundEmpty}</div>
               )}
             </article>
           </div>
@@ -515,26 +706,29 @@ export default function App() {
               🔊
             </span>
             <div>
-              <p className="panel-label">Volume boost</p>
+              <p className="panel-label">{languageText.volumePanel.label}</p>
               <strong className="panel-title">{automationStateLabel}</strong>
             </div>
           </div>
           <div className="volume-details">
-            <div className="detail-line">Next trigger: {nextAutomationLabel}</div>
             <div className="detail-line">
-              Status: <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
+              {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
+            </div>
+            <div className="detail-line">
+              {languageText.volumePanel.statusLabel}:{' '}
+              <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
             </div>
           </div>
           <div className="volume-actions">
             <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
-              Raise
+              {languageText.volumePanel.raise}
             </button>
             <button
               className="action-button"
               disabled={automationAction.busy}
               onClick={() => triggerAutomation('restore')}
             >
-              Restore
+              {languageText.volumePanel.restore}
             </button>
           </div>
           {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}

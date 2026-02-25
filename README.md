@@ -16,6 +16,7 @@ Live Suffolk Downs timing wrapped in a focused inbound first UI that treats Bowd
 - **Flip control**: Tap the directional emoji in the top-right corner of the timetable panel to slide in the secondary Wonderland/outbound card. It never defaults to the secondary view, and the animation keeps the page from overflowing.
 - **Walk buffer**: `WALK_TIME_MINUTES` (default `4`) plus seconds determine whether “Leave now” is realistic—if the next train arrives before you can reach the stop, the UI automatically promotes the next feasible train to the lead position.
 - **Volume panel**: Anchored at the bottom with clean lines, this section reports the next trigger window for the automation hooks and lets you see that the status is active without distracting from the timetable.
+- **Multilingual text**: Spanish is the default language, with an inline toggle to switch to English; choosing English stores `mbta-lang=en` in a cookie so the next visit honors your preference, and returning to Spanish clears that cookie.
 
 ## ⚙️ Quickstart
 
