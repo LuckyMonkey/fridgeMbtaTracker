@@ -86,6 +86,35 @@ const formatDuration = (deltaMs) => {
   return `${minutes}m ${paddedSeconds}s`;
 };
 
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(query).matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mediaQuery = window.matchMedia(query);
+    const handleChange = (event) => {
+      setMatches(event.matches);
+    };
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+    } else {
+      mediaQuery.addListener(handleChange);
+    }
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleChange);
+      } else {
+        mediaQuery.removeListener(handleChange);
+      }
+    };
+  }, [query]);
+
+  return matches;
+};
+
 const LANG_COOKIE = 'mbta-lang';
 const DEFAULT_LANGUAGE = 'es';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -148,6 +177,7 @@ const TRANSLATIONS = {
       flipToOutboundTitle: 'Flip to Wonderland outbound',
       flipToInboundTitle: 'Flip to Bowdoin inbound',
       missedSuffix: ' (missed)',
+      scheduledLabel: 'Scheduled',
     },
     volumePanel: {
       label: 'Volume boost',
@@ -210,6 +240,7 @@ const TRANSLATIONS = {
       flipToOutboundTitle: 'Mostrar salidas a Wonderland',
       flipToInboundTitle: 'Mostrar salidas a Bowdoin',
       missedSuffix: ' (perdido)',
+      scheduledLabel: 'Programado',
     },
     volumePanel: {
       label: 'Aumento de volumen',
@@ -245,6 +276,8 @@ export default function App() {
   const [nowMs, setNowMs] = useState(Date.now());
   const [activeCard, setActiveCard] = useState('inbound');
   const [automationAction, setAutomationAction] = useState({ busy: false, error: '' });
+  const [mobileCard, setMobileCard] = useState('inbound');
+  const isMobileLayout = useMediaQuery('(max-width: 720px)');
   const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
 
   const pollRef = useRef(null);
@@ -374,6 +407,12 @@ export default function App() {
     };
   }, [loadAutomationStatus]);
 
+  useEffect(() => {
+    if (isMobileLayout) {
+      setMobileCard('inbound');
+    }
+  }, [isMobileLayout]);
+
   const predictions = Array.isArray(payload?.predictions) ? payload.predictions : [];
   const predictionsLive = useMemo(
     () =>
@@ -422,6 +461,47 @@ export default function App() {
   const integrityOk = checklist.inbound && checklist.outbound;
   const nextAccessibleId = annotatedPrimary.find((p) => p.isCatchable)?.id || null;
   const languageText = TRANSLATIONS[language] || TRANSLATIONS[DEFAULT_LANGUAGE];
+
+  const renderPredictionList = (items, { maxRows = 10, emptyLabel = '', highlightId = null } = {}) => {
+    if (!items.length) {
+      return <div className="empty">{emptyLabel}</div>;
+    }
+
+    return (
+      <div className="list-frame">
+        <ul className="list">
+          {items.slice(0, maxRows).map((prediction) => {
+            const classes = ['row', prediction.isMissed ? 'row--missed' : '', highlightId === prediction.id ? 'row--next' : '']
+              .filter(Boolean)
+              .join(' ');
+            const title = `${prediction.headsign || prediction.routeName || prediction.routeId || 'Train'}${
+              prediction.isMissed ? languageText.flashcards.missedSuffix : ''
+            }`;
+            return (
+              <li key={prediction.id} className={classes}>
+                <div className="row-left">
+                  <span className="time-badge">{formatMinutes(prediction.liveMinutes)}</span>
+                  <div className="details">
+                    <div className="title">{title}</div>
+                    <div className="sub">
+                      {prediction.status || (prediction.arrivalTime || prediction.departureTime ? languageText.flashcards.scheduledLabel : '—')}
+                    </div>
+                  </div>
+                </div>
+                <div className="row-right">
+                  {prediction.routeId ? (
+                    <span className="route-pill" style={{ '--route-color': getRouteColor(prediction.routeId) }}>
+                      {prediction.routeId}
+                    </span>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (!integrityOk) {
@@ -483,6 +563,135 @@ export default function App() {
       ? '—'
       : `${modeLabel} ${languageText.automation.upcomingIn} ${when}`;
   })();
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || typeof document === 'undefined') return undefined;
+    if (!('wakeLock' in navigator)) return undefined;
+    let wakeLock = null;
+    const requestLock = async () => {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener?.('release', () => {
+          wakeLock = null;
+        });
+      } catch (error) {
+        console.error('Wake lock request failed', error);
+      }
+    };
+    requestLock();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        requestLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      wakeLock?.release?.();
+    };
+  }, []);
+
+  const mobileSections = useMemo(
+    () => [
+      {
+        id: 'inbound',
+        label: languageText.flashcards.inboundLabel,
+        render: () => (
+          <>
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                ⬆️
+              </span>
+              <div>
+                <p className="panel-label">{languageText.flashcards.inboundLabel}</p>
+                <strong className="panel-title">
+                  {annotatedPrimary.length
+                    ? `${languageText.flashcards.inboundNextPrefix} ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
+                    : languageText.flashcards.noDepartures}
+                </strong>
+              </div>
+            </div>
+            {renderPredictionList(annotatedPrimary, {
+              maxRows: 6,
+              emptyLabel: languageText.flashcards.noDepartures,
+              highlightId: nextAccessibleId,
+            })}
+          </>
+        ),
+      },
+      {
+        id: 'outbound',
+        label: languageText.flashcards.outboundLabel,
+        render: () => (
+          <>
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                ↩️
+              </span>
+              <div>
+                <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
+                <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
+              </div>
+            </div>
+            {renderPredictionList(annotatedSecondary, {
+              maxRows: 6,
+              emptyLabel: languageText.flashcards.outboundEmpty,
+            })}
+          </>
+        ),
+      },
+      {
+        id: 'volume',
+        label: languageText.volumePanel.label,
+        render: () => (
+          <>
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                🔊
+              </span>
+              <div>
+                <p className="panel-label">{languageText.volumePanel.label}</p>
+                <strong className="panel-title">{automationStateLabel}</strong>
+              </div>
+            </div>
+            <div className="volume-details">
+              <div className="detail-line">
+                {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
+              </div>
+              <div className="detail-line">
+                {languageText.volumePanel.statusLabel}:{' '}
+                <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
+              </div>
+            </div>
+            <div className="volume-actions">
+              <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
+                {languageText.volumePanel.raise}
+              </button>
+              <button
+                className="action-button"
+                disabled={automationAction.busy}
+                onClick={() => triggerAutomation('restore')}
+              >
+                {languageText.volumePanel.restore}
+              </button>
+            </div>
+            {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
+          </>
+        ),
+      },
+    ],
+    [
+      annotatedPrimary,
+      annotatedSecondary,
+      automationAction,
+      automationStateClass,
+      automationStateLabel,
+      languageText,
+      nextAccessibleId,
+      nextAutomationLabel,
+      renderPredictionList,
+    ]
+  );
 
   return (
     <div className="page" style={{ '--mbta-accent': dominantColor }}>
@@ -559,180 +768,224 @@ export default function App() {
           </div>
         ) : null}
 
-        <section className="indicator-row">
-          <section className={`panel walk-panel walk-${walkIndicator?.urgency || 'idle'}`}>
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                🚶
-              </span>
-              <div>
-                <p className="panel-label">{languageText.walk.label}</p>
-                <strong className="panel-title">
-                  {walkIndicator?.title || languageText.walk.idleTitle}
-                </strong>
+        {isMobileLayout ? (
+          <section className="mobile-shell">
+            <div className={`mobile-hero walk-${walkIndicator?.urgency || 'idle'}`}>
+              <div className="hero-clock">
+                <strong className="hero-title">{walkIndicator?.title || languageText.walk.idleTitle}</strong>
+                <p className="hero-subtitle">{walkIndicator?.subtitle || languageText.walk.idleSubtitle}</p>
+                <p className="hero-meta">
+                  {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
+                </p>
               </div>
             </div>
-            <p className="panel-subtitle">
-              {walkIndicator?.subtitle || languageText.walk.idleSubtitle}
-            </p>
-            <p className="panel-meta">
-              {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
-            </p>
+            <section className="mobile-card-area">
+              {mobileSections.map((section) => (
+                <article
+                  key={section.id}
+                  className={`mobile-card ${mobileCard === section.id ? 'mobile-card--active' : ''}`}
+                  aria-hidden={mobileCard !== section.id}
+                >
+                  {section.render()}
+                </article>
+              ))}
+            </section>
+            <div className="mobile-tabs">
+              {mobileSections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  className={`mobile-tab ${mobileCard === section.id ? 'mobile-tab--active' : ''}`}
+                  onClick={() => setMobileCard(section.id)}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
           </section>
-        </section>
-
-        <section className="flashcard-wrapper">
-          <div className="flashcard-stack">
-            <article
-              className={`flashcard flashcard--inbound ${activeCard === 'inbound' ? 'flashcard--active' : ''}`}
-              aria-hidden={activeCard !== 'inbound'}
-            >
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                ⬆️
-              </span>
-              <div>
-                <p className="panel-label">{languageText.flashcards.inboundLabel}</p>
-                <strong className="panel-title">
-                  {annotatedPrimary.length
-                    ? `${languageText.flashcards.inboundNextPrefix} ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
-                    : languageText.flashcards.noDepartures}
-                </strong>
-              </div>
-              <button
-                className="flip-button"
-                onClick={() => setActiveCard('outbound')}
-                title={languageText.flashcards.flipToOutboundTitle}
-              >
-                ↻
-              </button>
-            </div>
-            {annotatedPrimary.length ? (
-              <div className="list-frame">
-                <ul className="list">
-                  {annotatedPrimary.slice(0, 8).map((p) => {
-                    const classes = ['row', p.isMissed ? 'row--missed' : '', p.id === nextAccessibleId ? 'row--next' : '']
-                      .filter(Boolean)
-                      .join(' ');
-                    const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${
-                      p.isMissed ? languageText.flashcards.missedSuffix : ''
-                    }`;
-                      return (
-                        <li key={p.id} className={classes}>
-                          <div className="row-left">
-                            <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                            <div className="details">
-                              <div className="title">{title}</div>
-                              <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
-                            </div>
-                          </div>
-                          <div className="row-right">
-                            {p.routeId ? (
-                              <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                                {p.routeId}
-                              </span>
-                            ) : null}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+        ) : (
+          <>
+            <section className="indicator-row">
+              <section className={`panel walk-panel walk-${walkIndicator?.urgency || 'idle'}`}>
+                <div className="panel-heading">
+                  <span className="panel-emoji" role="presentation">
+                    🚶
+                  </span>
+                  <div>
+                    <p className="panel-label">{languageText.walk.label}</p>
+                    <strong className="panel-title">
+                      {walkIndicator?.title || languageText.walk.idleTitle}
+                    </strong>
+                  </div>
                 </div>
-              ) : (
-                <div className="empty primary-empty">{languageText.flashcards.primaryEmpty}</div>
-              )}
-            </article>
+                <p className="panel-subtitle">
+                  {walkIndicator?.subtitle || languageText.walk.idleSubtitle}
+                </p>
+                <p className="panel-meta">
+                  {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
+                </p>
+              </section>
+            </section>
 
-            <article
-              className={`flashcard flashcard--outbound ${activeCard === 'outbound' ? 'flashcard--active' : ''}`}
-              aria-hidden={activeCard !== 'outbound'}
-            >
+            <section className="flashcard-wrapper">
+              <div className="flashcard-stack">
+                <article
+                  className={`flashcard flashcard--inbound ${activeCard === 'inbound' ? 'flashcard--active' : ''}`}
+                  aria-hidden={activeCard !== 'inbound'}
+                >
+                  <div className="panel-heading">
+                    <span className="panel-emoji" role="presentation">
+                      ⬆️
+                    </span>
+                    <div>
+                      <p className="panel-label">{languageText.flashcards.inboundLabel}</p>
+                      <strong className="panel-title">
+                        {annotatedPrimary.length
+                          ? `${languageText.flashcards.inboundNextPrefix} ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
+                          : languageText.flashcards.noDepartures}
+                      </strong>
+                    </div>
+                    <button
+                      className="flip-button"
+                      onClick={() => setActiveCard('outbound')}
+                      title={languageText.flashcards.flipToOutboundTitle}
+                    >
+                      ↻
+                    </button>
+                  </div>
+                  {annotatedPrimary.length ? (
+                    <div className="list-frame">
+                      <ul className="list">
+                        {annotatedPrimary.slice(0, 8).map((p) => {
+                          const classes = ['row', p.isMissed ? 'row--missed' : '', p.id === nextAccessibleId ? 'row--next' : '']
+                            .filter(Boolean)
+                            .join(' ');
+                          const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${
+                            p.isMissed ? languageText.flashcards.missedSuffix : ''
+                          }`;
+                          return (
+                            <li key={p.id} className={classes}>
+                              <div className="row-left">
+                                <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                                <div className="details">
+                                  <div className="title">{title}</div>
+                                  <div className="sub">
+                                    {p.status || (p.arrivalTime || p.departureTime ? languageText.flashcards.scheduledLabel : '—')}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="row-right">
+                                {p.routeId ? (
+                                  <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                                    {p.routeId}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="empty primary-empty">{languageText.flashcards.primaryEmpty}</div>
+                  )}
+                </article>
+
+                <article
+                  className={`flashcard flashcard--outbound ${activeCard === 'outbound' ? 'flashcard--active' : ''}`}
+                  aria-hidden={activeCard !== 'outbound'}
+                >
+                  <div className="panel-heading">
+                    <span className="panel-emoji" role="presentation">
+                      ↩️
+                    </span>
+                    <div>
+                      <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
+                      <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
+                    </div>
+                    <button
+                      className="flip-button"
+                      onClick={() => setActiveCard('inbound')}
+                      title={languageText.flashcards.flipToInboundTitle}
+                    >
+                      ↻
+                    </button>
+                  </div>
+                  {annotatedSecondary.length ? (
+                    <div className="list-frame">
+                      <ul className="list">
+                        {annotatedSecondary.slice(0, 10).map((p) => {
+                          const classes = ['row', p.isMissed ? 'row--missed' : ''].filter(Boolean).join(' ');
+                          const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${
+                            p.isMissed ? languageText.flashcards.missedSuffix : ''
+                          }`;
+                          return (
+                            <li key={p.id} className={classes}>
+                              <div className="row-left">
+                                <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                                <div className="details">
+                                  <div className="title">{title}</div>
+                                  <div className="sub">
+                                    {p.status || (p.arrivalTime || p.departureTime ? languageText.flashcards.scheduledLabel : '—')}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="row-right">
+                                {p.routeId ? (
+                                  <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                                    {p.routeId}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="empty secondary-empty">{languageText.flashcards.outboundEmpty}</div>
+                  )}
+                </article>
+              </div>
+            </section>
+
+            <section className="panel volume-panel">
               <div className="panel-heading">
                 <span className="panel-emoji" role="presentation">
-                  ↩️
+                  🔊
                 </span>
                 <div>
-                  <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
-                  <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
+                  <p className="panel-label">{languageText.volumePanel.label}</p>
+                  <strong className="panel-title">{automationStateLabel}</strong>
                 </div>
+              </div>
+              <div className="volume-details">
+                <div className="detail-line">
+                  {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
+                </div>
+                <div className="detail-line">
+                  {languageText.volumePanel.statusLabel}:{' '}
+                  <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
+                </div>
+              </div>
+              <div className="volume-actions">
+                <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
+                  {languageText.volumePanel.raise}
+                </button>
                 <button
-                  className="flip-button"
-                  onClick={() => setActiveCard('inbound')}
-                  title={languageText.flashcards.flipToInboundTitle}
+                  className="action-button"
+                  disabled={automationAction.busy}
+                  onClick={() => triggerAutomation('restore')}
                 >
-                  ↻
+                  {languageText.volumePanel.restore}
                 </button>
               </div>
-              {annotatedSecondary.length ? (
-                <div className="list-frame">
-                  <ul className="list">
-                    {annotatedSecondary.slice(0, 10).map((p) => {
-                      const classes = ['row', p.isMissed ? 'row--missed' : ''].filter(Boolean).join(' ');
-                      const title = `${p.headsign || p.routeName || p.routeId || 'Train'}${
-                        p.isMissed ? languageText.flashcards.missedSuffix : ''
-                      }`;
-                      return (
-                        <li key={p.id} className={classes}>
-                          <div className="row-left">
-                            <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                            <div className="details">
-                              <div className="title">{title}</div>
-                              <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
-                            </div>
-                          </div>
-                          <div className="row-right">
-                            {p.routeId ? (
-                              <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                                {p.routeId}
-                              </span>
-                            ) : null}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : (
-                <div className="empty secondary-empty">{languageText.flashcards.outboundEmpty}</div>
-              )}
-            </article>
-          </div>
+              {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
+            </section>
+          </>
+        )}
 
-        </section>
 
-        <section className="panel volume-panel">
-          <div className="panel-heading">
-            <span className="panel-emoji" role="presentation">
-              🔊
-            </span>
-            <div>
-              <p className="panel-label">{languageText.volumePanel.label}</p>
-              <strong className="panel-title">{automationStateLabel}</strong>
-            </div>
-          </div>
-          <div className="volume-details">
-            <div className="detail-line">
-              {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
-            </div>
-            <div className="detail-line">
-              {languageText.volumePanel.statusLabel}:{' '}
-              <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
-            </div>
-          </div>
-          <div className="volume-actions">
-            <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
-              {languageText.volumePanel.raise}
-            </button>
-            <button
-              className="action-button"
-              disabled={automationAction.busy}
-              onClick={() => triggerAutomation('restore')}
-            >
-              {languageText.volumePanel.restore}
-            </button>
-          </div>
-          {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
-        </section>
       </main>
     </div>
   );
