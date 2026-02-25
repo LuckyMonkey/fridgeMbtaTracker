@@ -359,7 +359,9 @@ select {
 }
 
 @media (max-width: 720px) {
-  body {
+  body,
+  html {
+    height: 100%;
     background: var(--bg);
   }
 
@@ -369,47 +371,61 @@ select {
     min-height: 100vh;
   }
 
-  .header {
-    border-radius: 0;
-    margin: 0;
-    padding: 18px 16px;
+  .header,
+  .controls,
+  .status-row,
+  .check-alert,
+  .flashcard-wrapper,
+  .volume-panel,
+  .indicator-row {
+    display: none;
   }
 
   .content {
-    padding: 0 12px 24px;
+    padding: 0;
+    min-height: 100vh;
   }
 
   .mobile-shell {
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    min-height: calc(100vh - 160px);
   }
 
   .mobile-hero {
+    flex: 1;
     border-radius: 0;
-    border: 2px solid var(--border);
+    border: 0;
     background: var(--panel);
-    box-shadow: 0 20px 40px -20px var(--shadow);
+    box-shadow: none;
     padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
   .hero-clock {
     text-align: center;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .hero-badge {
+    font-size: 32px;
   }
 
   .hero-title {
-    font-size: clamp(32px, 6vw, 48px);
+    font-size: clamp(34px, 7vw, 58px);
     text-transform: uppercase;
-    letter-spacing: 0.25em;
+    letter-spacing: 0.3em;
   }
 
   .hero-subtitle {
     margin: 0;
-    font-size: clamp(16px, 3vw, 20px);
+    font-size: clamp(16px, 3vw, 22px);
     font-weight: 600;
   }
 
@@ -420,52 +436,51 @@ select {
     color: var(--muted);
   }
 
-  .mobile-card-area {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  .hero-card {
+    margin-top: 24px;
   }
 
-  .mobile-card {
-    display: none;
-    border: 2px solid var(--border);
-    border-radius: 0;
-    padding: 16px;
+  .mobile-nav {
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
     background: var(--panel);
-    box-shadow: 0 18px 36px -20px var(--shadow);
-    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
 
-  .mobile-card--active {
-    display: block;
-  }
-
-  .mobile-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-
-  .mobile-tab {
-    border: 2px solid var(--border);
+  .mobile-nav-arrow {
+    border: 1px solid var(--border);
     background: #fff;
-    padding: 10px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    font-weight: 700;
+    border-radius: 999px;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
   }
 
-  .mobile-tab--active {
-    border-color: var(--mbta-accent);
-    background: color-mix(in srgb, var(--mbta-accent) 10%, #fff);
-    color: var(--mbta-accent);
+  .mobile-nav-dots {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
-  .flashcard-wrapper,
-  .volume-panel {
-    display: none;
+  .mobile-nav-dot {
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    opacity: 0.3;
+    cursor: pointer;
+    color: var(--muted);
+  }
+
+  .mobile-nav-dot--active {
+    opacity: 1;
+    color: var(--mbta-accent);
   }
 }
 

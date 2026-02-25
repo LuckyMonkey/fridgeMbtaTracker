@@ -693,6 +693,19 @@ export default function App() {
     ]
   );
 
+  const mobileSectionIndex = mobileSections.findIndex((section) => section.id === mobileCard);
+  const normalizedMobileSectionIndex = mobileSectionIndex >= 0 ? mobileSectionIndex : 0;
+  const activeMobileSection = mobileSections[normalizedMobileSectionIndex];
+  const rotateMobileSection = useCallback(
+    (delta) => {
+      if (!mobileSections.length) return;
+      const nextIndex =
+        (normalizedMobileSectionIndex + delta + mobileSections.length) % mobileSections.length;
+      setMobileCard(mobileSections[nextIndex].id);
+    },
+    [mobileSections, normalizedMobileSectionIndex]
+  );
+
   return (
     <div className="page" style={{ '--mbta-accent': dominantColor }}>
       <header className="header">
@@ -772,35 +785,49 @@ export default function App() {
           <section className="mobile-shell">
             <div className={`mobile-hero walk-${walkIndicator?.urgency || 'idle'}`}>
               <div className="hero-clock">
+                <span className="hero-badge" aria-hidden="true">
+                  🎯
+                </span>
                 <strong className="hero-title">{walkIndicator?.title || languageText.walk.idleTitle}</strong>
-                <p className="hero-subtitle">{walkIndicator?.subtitle || languageText.walk.idleSubtitle}</p>
+                <p className="hero-subtitle">
+                  {languageText.walk.label} · {walkIndicator?.subtitle || languageText.walk.idleSubtitle}
+                </p>
                 <p className="hero-meta">
                   {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
                 </p>
               </div>
+              <div className="hero-card">{activeMobileSection?.render()}</div>
             </div>
-            <section className="mobile-card-area">
-              {mobileSections.map((section) => (
-                <article
-                  key={section.id}
-                  className={`mobile-card ${mobileCard === section.id ? 'mobile-card--active' : ''}`}
-                  aria-hidden={mobileCard !== section.id}
-                >
-                  {section.render()}
-                </article>
-              ))}
-            </section>
-            <div className="mobile-tabs">
-              {mobileSections.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  className={`mobile-tab ${mobileCard === section.id ? 'mobile-tab--active' : ''}`}
-                  onClick={() => setMobileCard(section.id)}
-                >
-                  {section.label}
-                </button>
-              ))}
+            <div className="mobile-nav">
+              <button
+                type="button"
+                className="mobile-nav-arrow"
+                onClick={() => rotateMobileSection(-1)}
+                aria-label="Previous view"
+              >
+                ◀️
+              </button>
+              <div className="mobile-nav-dots">
+                {mobileSections.map((section, idx) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    className={`mobile-nav-dot ${idx === normalizedMobileSectionIndex ? 'mobile-nav-dot--active' : ''}`}
+                    onClick={() => setMobileCard(section.id)}
+                    aria-label={`Show ${section.label}`}
+                  >
+                    ●
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="mobile-nav-arrow"
+                onClick={() => rotateMobileSection(1)}
+                aria-label="Next view"
+              >
+                ▶️
+              </button>
             </div>
           </section>
         ) : (
