@@ -218,11 +218,27 @@ export default function App() {
   const walkBufferMs = walkTimeMinutes * 60_000;
   const lastUpdated = payload?.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString() : '—';
 
+  const matchesHeadsign = (prediction, keyword) => {
+    const haystack = `${prediction.headsign || ''} ${prediction.routeName || ''}`.toLowerCase();
+    return haystack.includes(keyword.toLowerCase());
+  };
+  const isBowdoinPrediction = (prediction) => {
+    return matchesHeadsign(prediction, 'bowdoin');
+  };
+  const isWonderlandPrediction = (prediction) => {
+    return matchesHeadsign(prediction, 'wonderland');
+  };
+
   const inboundPredictions = predictionsLive.filter((p) => p.directionId === 1);
   const outboundPredictions = predictionsLive.filter((p) => p.directionId === 0);
+  const bowdoinPredictions = predictionsLive.filter(isBowdoinPrediction);
+  const wonderlandPredictions = predictionsLive.filter(isWonderlandPrediction);
+  const primaryPredictions = bowdoinPredictions.length ? bowdoinPredictions : inboundPredictions;
+  const secondaryPredictions = wonderlandPredictions.length ? wonderlandPredictions : outboundPredictions;
 
   const walkIndicator = useMemo(() => {
-    const candidates = inboundPredictions
+    const sourceCandidates = bowdoinPredictions.length ? bowdoinPredictions : inboundPredictions;
+    const candidates = sourceCandidates
       .map((p) => ({ ...p, eventMs: getPredictionEventMs(p) }))
       .filter((p) => p.eventMs !== null && p.eventMs >= nowMs - 90_000)
       .sort((a, b) => a.eventMs - b.eventMs);
@@ -347,15 +363,15 @@ export default function App() {
               <div>
                 <p className="panel-label">Inbound · Bowdoin</p>
                 <strong className="panel-title">
-                  {inboundPredictions.length
-                    ? `Next ${formatMinutes(inboundPredictions[0].liveMinutes)}`
+                  {primaryPredictions.length
+                    ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
                     : 'No inbound departures'}
                 </strong>
               </div>
             </div>
-            {inboundPredictions.length ? (
+            {primaryPredictions.length ? (
               <ul className="list">
-                {inboundPredictions.slice(0, 8).map((p) => (
+                {primaryPredictions.slice(0, 8).map((p) => (
                   <li key={p.id} className="row">
                     <div className="row-left">
                       <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>

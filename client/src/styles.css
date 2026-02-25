@@ -3,10 +3,10 @@
   --bg: #ffffff;
   --panel: #ffffff;
   --text: #0b0f17;
-  --border: #8f99ad;
+  --border: #b8c2d2;
   --muted: #4b5563;
   --accent: #003da5;
-  --shadow: rgba(0, 0, 0, 0.12);
+  --shadow: rgba(0, 0, 0, 0.14);
 }
 
 * {
