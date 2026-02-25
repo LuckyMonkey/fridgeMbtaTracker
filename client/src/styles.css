@@ -3,7 +3,7 @@
   --bg: #ffffff;
   --panel: #ffffff;
   --text: #0b0f17;
-  --border: #dfe3e8;
+  --border: #1f2937;
   --muted: #4b5563;
   --accent: #003da5;
   --shadow: rgba(0, 0, 0, 0.06);
@@ -34,9 +34,7 @@ body {
   gap: 18px;
   padding: 18px 20px;
   border: 1px solid var(--border);
-  border-radius: 14px;
   background: var(--panel);
-  box-shadow: 0 24px 56px -28px var(--shadow);
 }
 
 .brand {
@@ -49,7 +47,6 @@ body {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-radius: 999px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--accent) 20%, #fff);
 }
@@ -89,15 +86,34 @@ h1 {
   color: var(--muted);
 }
 
+.line-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+}
+
 select {
   width: min(360px, 74vw);
   border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 10px 12px;
   font-size: 15px;
   font-family: inherit;
   color: var(--text);
   background: #fff;
+}
+
+.button {
+  border: 1px solid var(--border);
+  background: #1a1a1a;
+  color: #fff;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .button {
@@ -123,7 +139,6 @@ select {
 }
 
 .alert {
-  border-radius: 12px;
   padding: 12px 14px;
   border: 1px solid var(--border);
   background: #fff3f0;
@@ -138,7 +153,6 @@ select {
 
 .status-block {
   border: 1px solid var(--border);
-  border-radius: 12px;
   padding: 14px 12px;
   background: var(--panel);
 }
@@ -165,10 +179,8 @@ select {
 
 .panel {
   border: 1px solid var(--border);
-  border-radius: 16px;
   padding: 18px;
   background: var(--panel);
-  box-shadow: 0 20px 50px -30px var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -235,7 +247,7 @@ select {
   align-items: center;
   justify-content: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 11px;
   letter-spacing: 0.3px;
   border: 1px solid var(--border);
@@ -256,14 +268,13 @@ select {
   border-color: color-mix(in srgb, #4b5563 40%, var(--border));
 }
 
-.predictions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
+.predictions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .prediction-panel {
-  border-radius: 16px;
   padding: 20px;
   gap: 14px;
 }
@@ -275,6 +286,56 @@ select {
 .prediction-panel--secondary {
   border: 1px dashed var(--border);
   opacity: 0.85;
+}
+
+.outbound-toggle {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid transparent;
+  padding-top: 6px;
+}
+
+.toggle-button {
+  border: 1px solid var(--border);
+  background: #f3f4f6;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.volume-panel {
+  margin-top: 12px;
+}
+
+.volume-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-button {
+  border: 1px solid var(--border);
+  background: #111;
+  color: #fff;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.inline-alert {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-radius: 0;
+  background: #fff3f0;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: #7b1f1f;
 }
 
 .list {
@@ -301,7 +362,6 @@ select {
 
 .time-badge {
   min-width: 70px;
-  border-radius: 12px;
   padding: 6px 12px;
   border: 1px solid var(--border);
   text-align: center;
@@ -332,7 +392,7 @@ select {
 
 .route-pill {
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 2px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   background: color-mix(in srgb, var(--route-color, #000) 10%, #fff);
   font-size: 12px;
@@ -341,7 +401,6 @@ select {
 
 .empty {
   padding: 16px;
-  border-radius: 12px;
   border: 1px dashed var(--border);
   text-align: center;
   font-size: 14px;

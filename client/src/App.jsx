@@ -1,16 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const groupBy = (items, keyFn) => {
-  const out = new Map();
-  for (const item of items) {
-    const key = keyFn(item);
-    const arr = out.get(key) || [];
-    arr.push(item);
-    out.set(key, arr);
-  }
-  return out;
-};
-
 const formatMinutes = (minutes) => {
   if (minutes === null || minutes === undefined) return '—';
   if (minutes <= 0) return 'Now';
@@ -97,6 +86,8 @@ export default function App() {
   const [refreshIntervalMs, setRefreshIntervalMs] = useState(DEFAULT_REFRESH_INTERVAL_MS);
   const [automationStatus, setAutomationStatus] = useState(null);
   const [nowMs, setNowMs] = useState(Date.now());
+  const [showOutbound, setShowOutbound] = useState(false);
+  const [automationAction, setAutomationAction] = useState({ busy: false, error: '' });
 
   const pollRef = useRef(null);
   const automationPollRef = useRef(null);
@@ -152,6 +143,27 @@ export default function App() {
     }
   }, []);
 
+  const triggerAutomation = useCallback(
+    async (action) => {
+      setAutomationAction({ busy: true, error: '' });
+      try {
+        const res = await fetch('/api/automation/test', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
+
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.details || json?.error || `Request failed (${res.status})`);
+        await loadAutomationStatus();
+        setAutomationAction({ busy: false, error: '' });
+      } catch (err) {
+        setAutomationAction({ busy: false, error: err?.message || 'Automation request failed.' });
+      }
+    },
+    [loadAutomationStatus]
+  );
+
   useEffect(() => {
     loadConfig().catch(() => {});
   }, [loadConfig]);
@@ -202,16 +214,9 @@ export default function App() {
   );
   const dominantRouteId = normalizeRouteId(getDominantRouteId(predictionsLive)) || 'Blue';
   const dominantColor = getRouteColor(dominantRouteId);
-  const byDirection = groupBy(predictionsLive, (p) => p.direction || 'Unknown');
   const walkMinutesLabel = Number.isInteger(walkTimeMinutes) ? String(walkTimeMinutes) : walkTimeMinutes.toFixed(2);
   const walkBufferMs = walkTimeMinutes * 60_000;
-  const sourceLabel = payload?.stale
-    ? 'Stale cache fallback'
-    : payload?.cached
-      ? `Local cache (${Math.round((payload?.cacheFreshMs || 0) / 1000)}s)`
-      : payload
-        ? 'MBTA API'
-        : '—';
+  const lastUpdated = payload?.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString() : '—';
 
   const inboundPredictions = predictionsLive.filter((p) => p.directionId === 1);
   const outboundPredictions = predictionsLive.filter((p) => p.directionId === 0);
@@ -306,20 +311,12 @@ export default function App() {
 
         <section className="status-row">
           <div className="status-block">
-            <span className="status-label">Selected</span>
+            <span className="status-label">Selected stop</span>
             <span className="status-value">{selectedStop ? selectedStop.name : '—'}</span>
           </div>
           <div className="status-block">
-            <span className="status-label">Updated</span>
-            <span className="status-value">{payload?.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString() : '—'}</span>
-          </div>
-          <div className="status-block">
-            <span className="status-label">Source</span>
-            <span className="status-value">{sourceLabel}</span>
-          </div>
-          <div className="status-block">
-            <span className="status-label">Clock</span>
-            <span className="status-value">{new Date(nowMs).toLocaleTimeString()}</span>
+            <span className="status-label">Last update</span>
+            <span className="status-value">{lastUpdated}</span>
           </div>
         </section>
 
@@ -334,32 +331,14 @@ export default function App() {
                 <strong className="panel-title">{walkIndicator?.title || 'Waiting for timing'}</strong>
               </div>
             </div>
-            <p className="panel-subtitle">{walkIndicator?.subtitle || 'No inbound predictions right now.'}</p>
+            <p className="panel-subtitle">{walkIndicator?.subtitle || 'No inbound predictions yet.'}</p>
             <p className="panel-meta">
               Walk buffer: {walkMinutesLabel} min · API refresh {Math.round(refreshIntervalMs / 1000)}s
             </p>
           </section>
-
-          <section className="panel volume-panel">
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                🔊
-              </span>
-              <div>
-                <p className="panel-label">Volume boost</p>
-                <strong className="panel-title">{automationStateLabel}</strong>
-              </div>
-            </div>
-            <div className="volume-details">
-              <div className="detail-line">Next trigger: {nextAutomationLabel}</div>
-              <div className="detail-line">
-                Status: <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
-              </div>
-            </div>
-          </section>
         </section>
 
-        <section className="predictions-grid">
+        <section className="predictions-section">
           <section className="panel prediction-panel prediction-panel--primary">
             <div className="panel-heading">
               <span className="panel-emoji" role="presentation">
@@ -399,7 +378,19 @@ export default function App() {
               <div className="empty primary-empty">Inbound timing settles soon.</div>
             )}
           </section>
+        </section>
 
+        <div className="outbound-toggle">
+          <button
+            className="toggle-button"
+            onClick={() => setShowOutbound((prev) => !prev)}
+            aria-expanded={showOutbound}
+          >
+            {showOutbound ? '⇦ Hide Wonderland timetable' : '⇨ Reveal Wonderland timetable'}
+          </button>
+        </div>
+
+        {showOutbound ? (
           <section className="panel prediction-panel prediction-panel--secondary">
             <div className="panel-heading">
               <span className="panel-emoji" role="presentation">
@@ -407,10 +398,10 @@ export default function App() {
               </span>
               <div>
                 <p className="panel-label">Outbound · Wonderland</p>
-                <strong className="panel-title">Secondary view</strong>
+                <strong className="panel-title">Reference only</strong>
               </div>
             </div>
-            <p className="panel-hint">For reference only — not part of the main walk indicator.</p>
+            <p className="panel-hint">Click the arrow again to hide this view.</p>
             {outboundPredictions.length ? (
               <ul className="list">
                 {outboundPredictions.slice(0, 8).map((p) => (
@@ -433,9 +424,40 @@ export default function App() {
                 ))}
               </ul>
             ) : (
-              <div className="empty secondary-empty">No outbound predictions at the moment.</div>
+              <div className="empty secondary-empty">No outbound predictions right now.</div>
             )}
           </section>
+        ) : null}
+
+        <section className="panel volume-panel">
+          <div className="panel-heading">
+            <span className="panel-emoji" role="presentation">
+              🔊
+            </span>
+            <div>
+              <p className="panel-label">Volume boost</p>
+              <strong className="panel-title">{automationStateLabel}</strong>
+            </div>
+          </div>
+          <div className="volume-details">
+            <div className="detail-line">Next trigger: {nextAutomationLabel}</div>
+            <div className="detail-line">
+              Status: <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
+            </div>
+          </div>
+          <div className="volume-actions">
+            <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
+              Raise
+            </button>
+            <button
+              className="action-button"
+              disabled={automationAction.busy}
+              onClick={() => triggerAutomation('restore')}
+            >
+              Restore
+            </button>
+          </div>
+          {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
         </section>
       </main>
     </div>
