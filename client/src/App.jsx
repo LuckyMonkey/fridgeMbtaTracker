@@ -54,7 +54,7 @@ const toPositiveNumber = (value, fallback) => {
 };
 
 const DEFAULT_WALK_TIME_MINUTES = toPositiveNumber(import.meta.env.VITE_WALK_MINUTES, 4);
-const DEFAULT_REFRESH_INTERVAL_MS = 20_000;
+const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
 const MIN_MISS_MS = 3 * 60_000;
 
 const getPredictionEventMs = (prediction) => {
@@ -276,7 +276,7 @@ export default function App() {
   const [nowMs, setNowMs] = useState(Date.now());
   const [activeCard, setActiveCard] = useState('inbound');
   const [automationAction, setAutomationAction] = useState({ busy: false, error: '' });
-  const [mobileCard, setMobileCard] = useState('inbound');
+  const [mobileCard, setMobileCard] = useState('hero');
   const isMobileLayout = useMediaQuery('(max-width: 720px)');
   const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
 
@@ -409,7 +409,7 @@ export default function App() {
 
   useEffect(() => {
     if (isMobileLayout) {
-      setMobileCard('inbound');
+      setMobileCard('hero');
     }
   }, [isMobileLayout]);
 
@@ -591,107 +591,129 @@ export default function App() {
     };
   }, []);
 
-  const mobileSections = useMemo(
-    () => [
-      {
-        id: 'inbound',
-        label: languageText.flashcards.inboundLabel,
-        render: () => (
-          <>
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                ⬆️
-              </span>
-              <div>
-                <p className="panel-label">{languageText.flashcards.inboundLabel}</p>
-                <strong className="panel-title">
-                  {annotatedPrimary.length
-                    ? `${languageText.flashcards.inboundNextPrefix} ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
-                    : languageText.flashcards.noDepartures}
-                </strong>
-              </div>
+  const mobileSections = useMemo(() => {
+    const heroSection = {
+      id: 'hero',
+      label: languageText.walk.label,
+      render: () => (
+        <div className={`mobile-hero-card walk-${walkIndicator?.urgency || 'idle'}`}>
+          <span className="hero-icon" role="presentation">
+            🚆
+          </span>
+          <strong className="hero-title">{walkIndicator?.title || languageText.walk.idleTitle}</strong>
+          <p className="hero-subtitle">{walkIndicator?.subtitle || languageText.walk.idleSubtitle}</p>
+          <p className="hero-meta">
+            {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
+          </p>
+        </div>
+      ),
+    };
+
+    const inboundSection = {
+      id: 'inbound',
+      label: languageText.flashcards.inboundLabel,
+      render: () => (
+        <div className="mobile-card">
+          <div className="panel-heading">
+            <span className="panel-emoji" role="presentation">
+              ⬆️
+            </span>
+            <div>
+              <p className="panel-label">{languageText.flashcards.inboundLabel}</p>
+              <strong className="panel-title">
+                {annotatedPrimary.length
+                  ? `${languageText.flashcards.inboundNextPrefix} ${formatMinutes(annotatedPrimary[0].liveMinutes)}`
+                  : languageText.flashcards.noDepartures}
+              </strong>
             </div>
-            {renderPredictionList(annotatedPrimary, {
-              maxRows: 6,
-              emptyLabel: languageText.flashcards.noDepartures,
-              highlightId: nextAccessibleId,
-            })}
-          </>
-        ),
-      },
-      {
-        id: 'outbound',
-        label: languageText.flashcards.outboundLabel,
-        render: () => (
-          <>
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                ↩️
-              </span>
-              <div>
-                <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
-                <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
-              </div>
+          </div>
+          {renderPredictionList(annotatedPrimary, {
+            maxRows: 6,
+            emptyLabel: languageText.flashcards.noDepartures,
+            highlightId: nextAccessibleId,
+          })}
+        </div>
+      ),
+    };
+
+    const outboundSection = {
+      id: 'outbound',
+      label: languageText.flashcards.outboundLabel,
+      render: () => (
+        <div className="mobile-card">
+          <div className="panel-heading">
+            <span className="panel-emoji" role="presentation">
+              ↩️
+            </span>
+            <div>
+              <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
+              <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
             </div>
-            {renderPredictionList(annotatedSecondary, {
-              maxRows: 6,
-              emptyLabel: languageText.flashcards.outboundEmpty,
-            })}
-          </>
-        ),
-      },
-      {
-        id: 'volume',
-        label: languageText.volumePanel.label,
-        render: () => (
-          <>
-            <div className="panel-heading">
-              <span className="panel-emoji" role="presentation">
-                🔊
-              </span>
-              <div>
-                <p className="panel-label">{languageText.volumePanel.label}</p>
-                <strong className="panel-title">{automationStateLabel}</strong>
-              </div>
+          </div>
+          {renderPredictionList(annotatedSecondary, {
+            maxRows: 6,
+            emptyLabel: languageText.flashcards.outboundEmpty,
+          })}
+        </div>
+      ),
+    };
+
+    const volumeSection = {
+      id: 'volume',
+      label: languageText.volumePanel.label,
+      render: () => (
+        <div className="mobile-card">
+          <div className="panel-heading">
+            <span className="panel-emoji" role="presentation">
+              🔊
+            </span>
+            <div>
+              <p className="panel-label">{languageText.volumePanel.label}</p>
+              <strong className="panel-title">{automationStateLabel}</strong>
             </div>
-            <div className="volume-details">
-              <div className="detail-line">
-                {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
-              </div>
-              <div className="detail-line">
-                {languageText.volumePanel.statusLabel}:{' '}
-                <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
-              </div>
+          </div>
+          <div className="volume-details">
+            <div className="detail-line">
+              {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
             </div>
-            <div className="volume-actions">
-              <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
-                {languageText.volumePanel.raise}
-              </button>
-              <button
-                className="action-button"
-                disabled={automationAction.busy}
-                onClick={() => triggerAutomation('restore')}
-              >
-                {languageText.volumePanel.restore}
-              </button>
+            <div className="detail-line">
+              {languageText.volumePanel.statusLabel}:{' '}
+              <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
             </div>
-            {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
-          </>
-        ),
-      },
-    ],
-    [
-      annotatedPrimary,
-      annotatedSecondary,
-      automationAction,
-      automationStateClass,
-      automationStateLabel,
-      languageText,
-      nextAccessibleId,
-      nextAutomationLabel,
-      renderPredictionList,
-    ]
-  );
+          </div>
+          <div className="volume-actions">
+            <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
+              {languageText.volumePanel.raise}
+            </button>
+            <button
+              className="action-button"
+              disabled={automationAction.busy}
+              onClick={() => triggerAutomation('restore')}
+            >
+              {languageText.volumePanel.restore}
+            </button>
+          </div>
+          {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
+        </div>
+      ),
+    };
+
+    return [heroSection, inboundSection, outboundSection, volumeSection];
+  }, [
+    automationAction,
+    automationStateClass,
+    automationStateLabel,
+    annotatedPrimary,
+    annotatedSecondary,
+    language,
+    languageText,
+    nextAccessibleId,
+    nextAutomationLabel,
+    refreshIntervalMs,
+    renderPredictionList,
+    walkIndicator,
+    walkMinutesLabel,
+  ]);
 
   const mobileSectionIndex = mobileSections.findIndex((section) => section.id === mobileCard);
   const normalizedMobileSectionIndex = mobileSectionIndex >= 0 ? mobileSectionIndex : 0;
@@ -804,22 +826,14 @@ export default function App() {
 
         {isMobileLayout ? (
           <section className="mobile-shell">
-            <div
-              className={`mobile-hero walk-${walkIndicator?.urgency || 'idle'}`}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
+            <button
+              type="button"
+              className="mobile-lang-chip mobile-lang-fixed"
+              onClick={toggleLanguage}
+              aria-pressed={language === 'es'}
             >
-              <div className="hero-clock">
-                <span className="hero-emoji" role="presentation">
-                  🚆
-                </span>
-                <strong className="hero-title">{walkIndicator?.title || languageText.walk.idleTitle}</strong>
-                <p className="hero-subtitle">{walkIndicator?.subtitle || languageText.walk.idleSubtitle}</p>
-                <p className="hero-meta">
-                  {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
-                </p>
-              </div>
-            </div>
+              {language === 'es' ? 'ES' : 'EN'}
+            </button>
             <div
               className="mobile-flashcard"
               onTouchStart={handleTouchStart}
@@ -827,19 +841,18 @@ export default function App() {
             >
               {activeMobileSection?.render()}
             </div>
-            <div className="mobile-nav">
+            <div className="mobile-arrow-controls">
               <button
                 type="button"
-                className="mobile-nav-arrow"
+                className="mobile-arrow"
                 onClick={() => rotateMobileSection(-1)}
                 aria-label="Previous view"
               >
                 ◀️
               </button>
-              <span className="mobile-nav-label">{activeMobileSection?.label}</span>
               <button
                 type="button"
-                className="mobile-nav-arrow"
+                className="mobile-arrow"
                 onClick={() => rotateMobileSection(1)}
                 aria-label="Next view"
               >
