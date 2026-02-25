@@ -87,11 +87,6 @@ const formatRelative = (deltaMs) => {
   return `${Math.ceil(deltaMs / 60_000)} min`;
 };
 
-const isBowdoinDestination = (prediction) => {
-  const label = (prediction.headsign || prediction.routeName || prediction.routeId || '').toLowerCase();
-  return label.includes('bowdoin');
-};
-
 export default function App() {
   const [stops, setStops] = useState([]);
   const [selectedStopId, setSelectedStopId] = useState('');
@@ -218,12 +213,13 @@ export default function App() {
         ? 'MBTA API'
         : '—';
 
+  const inboundPredictions = predictionsLive.filter((p) => p.directionId === 1);
+  const outboundPredictions = predictionsLive.filter((p) => p.directionId === 0);
+
   const walkIndicator = useMemo(() => {
-    const candidates = predictions
+    const candidates = inboundPredictions
       .map((p) => ({ ...p, eventMs: getPredictionEventMs(p) }))
-      .filter(
-        (p) => p.directionId === 1 && isBowdoinDestination(p) && p.eventMs !== null && p.eventMs >= nowMs - 90_000
-      )
+      .filter((p) => p.eventMs !== null && p.eventMs >= nowMs - 90_000)
       .sort((a, b) => a.eventMs - b.eventMs);
 
     const next = candidates[0];
@@ -254,7 +250,7 @@ export default function App() {
       title: `Leave in ${Math.ceil(leaveDeltaMs / 60_000)} min`,
       subtitle: `${next.direction || 'Train'} · ${headsign} · train in ${formatRelative(eventDeltaMs)}`,
     };
-  }, [predictions, nowMs, walkBufferMs]);
+  }, [inboundPredictions, nowMs, walkBufferMs]);
 
   const automationStateLabel = !automationStatus?.enabled ? 'Disabled' : automationStatus.active ? 'Active' : 'Armed';
   const automationStateClass = !automationStatus?.enabled ? 'status-off' : automationStatus.active ? 'status-active' : 'status-armed';
@@ -277,7 +273,7 @@ export default function App() {
             <span className="line-name">{dominantRouteId}</span>
           </div>
           <h1>MBTA Tracker</h1>
-          <p className="subtitle">Arrivals and departures for your pinned stops</p>
+          <p className="subtitle">Inbound focus · Bowdoin bound</p>
         </div>
 
         <div className="controls">
@@ -303,95 +299,144 @@ export default function App() {
       </header>
 
       <main className="content">
-        {error ? <div className="error">Error: {error}</div> : null}
+        {error ? <div className="alert error">Error: {error}</div> : null}
         {automationStatus?.lastActionError ? (
-          <div className="error">Automation action error: {automationStatus.lastActionError}</div>
+          <div className="alert error">Automation action error: {automationStatus.lastActionError}</div>
         ) : null}
 
-        <section className={`walk-indicator walk-${walkIndicator?.urgency || 'idle'}`}>
-          <span className="walk-label">Walk buffer: {walkMinutesLabel} min</span>
-          <strong className="walk-title">{walkIndicator?.title || 'Waiting for train timing'}</strong>
-          <span className="walk-sub">{walkIndicator?.subtitle || 'No upcoming prediction right now.'}</span>
-        </section>
-
-        <section className="meta">
-          <div className="meta-row">
-            <div className="meta-item">
-              <span className="meta-label">Selected</span>
-              <span className="meta-value">{selectedStop ? selectedStop.name : '—'}</span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Updated</span>
-              <span className="meta-value">{payload?.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString() : '—'}</span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Source</span>
-              <span className="meta-value">{sourceLabel}</span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">API refresh</span>
-              <span className="meta-value">Every {Math.round(refreshIntervalMs / 1000)}s</span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Clock</span>
-              <span className="meta-value">{new Date(nowMs).toLocaleTimeString()}</span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Volume boost</span>
-              <span className={`meta-value status-chip ${automationStateClass}`}>{automationStateLabel}</span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Next volume trigger</span>
-              <span className="meta-value">{nextAutomationLabel}</span>
-            </div>
+        <section className="status-row">
+          <div className="status-block">
+            <span className="status-label">Selected</span>
+            <span className="status-value">{selectedStop ? selectedStop.name : '—'}</span>
+          </div>
+          <div className="status-block">
+            <span className="status-label">Updated</span>
+            <span className="status-value">{payload?.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString() : '—'}</span>
+          </div>
+          <div className="status-block">
+            <span className="status-label">Source</span>
+            <span className="status-value">{sourceLabel}</span>
+          </div>
+          <div className="status-block">
+            <span className="status-label">Clock</span>
+            <span className="status-value">{new Date(nowMs).toLocaleTimeString()}</span>
           </div>
         </section>
 
-        <div className="grid">
-          {Array.from(byDirection.entries()).map(([direction, items]) => {
-            const panelRouteId = normalizeRouteId(getDominantRouteId(items)) || dominantRouteId;
-            const panelColor = getRouteColor(panelRouteId);
-            return (
-            <section key={direction} className="panel" style={{ '--panel-accent': panelColor }}>
-              <h2>{direction}</h2>
-              {items.length ? (
-                <ul className="list">
-                  {items.slice(0, 8).map((p) => (
-                    <li key={p.id} className="row">
-                      <div className="row-left">
-                        <div className="time">
-                          <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
-                        </div>
-                        <div className="details">
-                          <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
-                          <div className="sub">
-                            {p.status ? p.status : p.arrivalTime || p.departureTime ? 'Scheduled' : '—'}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="row-right">
-                        {p.routeId ? (
-                          <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
-                            {p.routeId}
-                          </span>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="empty">No predictions available.</div>
-              )}
-            </section>
-          )})}
+        <section className="indicator-row">
+          <section className={`panel walk-panel walk-${walkIndicator?.urgency || 'idle'}`}>
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                🚶
+              </span>
+              <div>
+                <p className="panel-label">Bowdoin departure</p>
+                <strong className="panel-title">{walkIndicator?.title || 'Waiting for timing'}</strong>
+              </div>
+            </div>
+            <p className="panel-subtitle">{walkIndicator?.subtitle || 'No inbound predictions right now.'}</p>
+            <p className="panel-meta">
+              Walk buffer: {walkMinutesLabel} min · API refresh {Math.round(refreshIntervalMs / 1000)}s
+            </p>
+          </section>
 
-          {!predictions.length && !error ? (
-            <section className="panel">
-              <h2>Predictions</h2>
-              <div className="empty">{loading ? 'Loading…' : 'No data yet.'}</div>
-            </section>
-          ) : null}
-        </div>
+          <section className="panel volume-panel">
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                🔊
+              </span>
+              <div>
+                <p className="panel-label">Volume boost</p>
+                <strong className="panel-title">{automationStateLabel}</strong>
+              </div>
+            </div>
+            <div className="volume-details">
+              <div className="detail-line">Next trigger: {nextAutomationLabel}</div>
+              <div className="detail-line">
+                Status: <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section className="predictions-grid">
+          <section className="panel prediction-panel prediction-panel--primary">
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                ⬆️
+              </span>
+              <div>
+                <p className="panel-label">Inbound · Bowdoin</p>
+                <strong className="panel-title">
+                  {inboundPredictions.length
+                    ? `Next ${formatMinutes(inboundPredictions[0].liveMinutes)}`
+                    : 'No inbound departures'}
+                </strong>
+              </div>
+            </div>
+            {inboundPredictions.length ? (
+              <ul className="list">
+                {inboundPredictions.slice(0, 8).map((p) => (
+                  <li key={p.id} className="row">
+                    <div className="row-left">
+                      <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                      <div className="details">
+                        <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
+                        <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                      </div>
+                    </div>
+                    <div className="row-right">
+                      {p.routeId ? (
+                        <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                          {p.routeId}
+                        </span>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="empty primary-empty">Inbound timing settles soon.</div>
+            )}
+          </section>
+
+          <section className="panel prediction-panel prediction-panel--secondary">
+            <div className="panel-heading">
+              <span className="panel-emoji" role="presentation">
+                ↩️
+              </span>
+              <div>
+                <p className="panel-label">Outbound · Wonderland</p>
+                <strong className="panel-title">Secondary view</strong>
+              </div>
+            </div>
+            <p className="panel-hint">For reference only — not part of the main walk indicator.</p>
+            {outboundPredictions.length ? (
+              <ul className="list">
+                {outboundPredictions.slice(0, 8).map((p) => (
+                  <li key={p.id} className="row">
+                    <div className="row-left">
+                      <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
+                      <div className="details">
+                        <div className="title">{p.headsign || p.routeName || p.routeId || 'Train'}</div>
+                        <div className="sub">{p.status || (p.arrivalTime || p.departureTime ? 'Scheduled' : '—')}</div>
+                      </div>
+                    </div>
+                    <div className="row-right">
+                      {p.routeId ? (
+                        <span className="route-pill" style={{ '--route-color': getRouteColor(p.routeId) }}>
+                          {p.routeId}
+                        </span>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="empty secondary-empty">No outbound predictions at the moment.</div>
+            )}
+          </section>
+        </section>
       </main>
     </div>
   );
