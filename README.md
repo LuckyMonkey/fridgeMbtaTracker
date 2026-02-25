@@ -6,7 +6,7 @@ Live Suffolk Downs timing wrapped in a focused inbound first UI that treats Bowd
 
 - **Inbound-first, Bowdoin-only** – the primary panel only highlights Bowdoin departures so you never chase the wrong train; all Wonderland / outbound runs live behind the flip control.
 - **10-foot friendly layout** – black-on-white, Helvetica-inspired, high-contrast borders, squared edges, drop shadows, and mobile-friendly scaling keep the UI legible whether on a hallway screen or phone.
-- **Smart timing guidance** – leave-time message includes seconds, compares arrivals to the configured walk buffer, and marks trains arriving faster than you can reach the stop as “missed.” The next catchable train is highlighted and stays in sync via a 20 second polling cadence.
+- **Smart timing guidance** – leave-time message includes seconds, compares arrivals to the configured walk buffer, and marks trains arriving faster than you can reach the stop as “missed.” The next catchable train is highlighted and stays in sync via a 30 second polling cadence.
 - **Volume boost automation** – the dedicated bottom panel keeps household automation in view without crowding the timetable.
 - **Flip-to-outbound control** – a lightweight emoji icon in the top-right of the timetable panel toggles the outbound (Wonderland) list via a smooth accordion-style transition so only one card shows at a time.
 
@@ -48,8 +48,10 @@ docker compose up -d --build
 | `DEFAULT_STOP_ID` | `place-sdmnl` | Suffolk Downs stop ID |
 | `DEFAULT_STOP_NAME` | `Suffolk Downs` | Desk label |
 | `WALK_TIME_MINUTES` | `4` | Walk buffer still used for “Leave in…” logic |
-| `UI_REFRESH_MS` | `20000` | Client polling cadence (now 20 s for seconds-level timing) |
-| `PREDICTIONS_FRESH_MS` | `60000` | How long cached data is “fresh” |
+| `UI_REFRESH_MS` | `60000` | Client polling reminder interval exposed via `/api/config` |
+| `PREDICTIONS_POLL_MS` | `30000` | How often the API polls MBTA for pinned stops |
+| `PREDICTIONS_TTL_MS` | `60000` | How long cached results remain “fresh” before stale mode |
+| `PREDICTIONS_FRESH_MS` | `60000` | *(legacy; kept in sync with `PREDICTIONS_TTL_MS` for compatibility)* |
 | `PREDICTIONS_STALE_MS` | `300000` | How long stale data can be served if the API lags |
 | `PREDICTIONS_TIMEOUT_MS` | `8000` | MBTA request timeout |
 | `PREDICTIONS_LIMIT` | `16` | Number of predictions requested |
