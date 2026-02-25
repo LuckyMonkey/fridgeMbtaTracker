@@ -785,19 +785,17 @@ export default function App() {
           <section className="mobile-shell">
             <div className={`mobile-hero walk-${walkIndicator?.urgency || 'idle'}`}>
               <div className="hero-clock">
-                <span className="hero-badge" aria-hidden="true">
-                  🎯
+                <span className="hero-emoji" aria-hidden="true">
+                  🚆
                 </span>
                 <strong className="hero-title">{walkIndicator?.title || languageText.walk.idleTitle}</strong>
-                <p className="hero-subtitle">
-                  {languageText.walk.label} · {walkIndicator?.subtitle || languageText.walk.idleSubtitle}
-                </p>
+                <p className="hero-subtitle">{walkIndicator?.subtitle || languageText.walk.idleSubtitle}</p>
                 <p className="hero-meta">
                   {languageText.walk.walkBufferText(walkMinutesLabel, Math.round(refreshIntervalMs / 1000))}
                 </p>
               </div>
-              <div className="hero-card">{activeMobileSection?.render()}</div>
             </div>
+            <div className="mobile-flashcard">{activeMobileSection?.render()}</div>
             <div className="mobile-nav">
               <button
                 type="button"
@@ -807,19 +805,7 @@ export default function App() {
               >
                 ◀️
               </button>
-              <div className="mobile-nav-dots">
-                {mobileSections.map((section, idx) => (
-                  <button
-                    key={section.id}
-                    type="button"
-                    className={`mobile-nav-dot ${idx === normalizedMobileSectionIndex ? 'mobile-nav-dot--active' : ''}`}
-                    onClick={() => setMobileCard(section.id)}
-                    aria-label={`Show ${section.label}`}
-                  >
-                    ●
-                  </button>
-                ))}
-              </div>
+              <span className="mobile-nav-label">{activeMobileSection?.label}</span>
               <button
                 type="button"
                 className="mobile-nav-arrow"

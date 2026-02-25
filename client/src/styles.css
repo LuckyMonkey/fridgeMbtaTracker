@@ -413,31 +413,36 @@ select {
     align-items: center;
   }
 
-  .hero-badge {
-    font-size: 32px;
+  .hero-emoji {
+    font-size: 40px;
   }
 
   .hero-title {
-    font-size: clamp(34px, 7vw, 58px);
-    text-transform: uppercase;
-    letter-spacing: 0.3em;
+    font-size: clamp(32px, 6vw, 48px);
+    text-transform: none;
+    letter-spacing: 0.05em;
   }
 
   .hero-subtitle {
     margin: 0;
-    font-size: clamp(16px, 3vw, 22px);
-    font-weight: 600;
+    font-size: clamp(16px, 3vw, 20px);
+    font-weight: 500;
   }
 
   .hero-meta {
     margin: 0;
     font-size: 14px;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.1px;
     color: var(--muted);
   }
 
-  .hero-card {
-    margin-top: 24px;
+  .mobile-flashcard {
+    border: 2px solid var(--border);
+    border-radius: 0;
+    background: var(--panel);
+    padding: 16px;
+    margin: 0 16px;
+    box-shadow: 0 18px 36px -20px var(--shadow);
   }
 
   .mobile-nav {
@@ -463,24 +468,10 @@ select {
     cursor: pointer;
   }
 
-  .mobile-nav-dots {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .mobile-nav-dot {
-    border: none;
-    background: transparent;
-    font-size: 18px;
-    opacity: 0.3;
-    cursor: pointer;
-    color: var(--muted);
-  }
-
-  .mobile-nav-dot--active {
-    opacity: 1;
-    color: var(--mbta-accent);
+  .mobile-nav-label {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
   }
 }
 
