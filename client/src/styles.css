@@ -455,6 +455,14 @@ select {
     gap: 12px;
   }
 
+  .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+  }
+
   .mobile-nav-arrow {
     border: 1px solid var(--border);
     background: #fff;

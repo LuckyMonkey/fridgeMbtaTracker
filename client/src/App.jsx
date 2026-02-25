@@ -705,6 +705,27 @@ export default function App() {
     },
     [mobileSections, normalizedMobileSectionIndex]
   );
+  const touchStartX = useRef(null);
+
+  const handleTouchStart = useCallback((event) => {
+    touchStartX.current = event.touches ? event.touches[0]?.clientX : event.clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (event) => {
+      const endX = event.changedTouches ? event.changedTouches[0]?.clientX : event.clientX;
+      if (touchStartX.current === null || endX === undefined) return;
+      const delta = endX - touchStartX.current;
+      const threshold = 40;
+      if (delta > threshold) {
+        rotateMobileSection(-1);
+      } else if (delta < -threshold) {
+        rotateMobileSection(1);
+      }
+      touchStartX.current = null;
+    },
+    [rotateMobileSection]
+  );
 
   return (
     <div className="page" style={{ '--mbta-accent': dominantColor }}>
@@ -783,9 +804,13 @@ export default function App() {
 
         {isMobileLayout ? (
           <section className="mobile-shell">
-            <div className={`mobile-hero walk-${walkIndicator?.urgency || 'idle'}`}>
+            <div
+              className={`mobile-hero walk-${walkIndicator?.urgency || 'idle'}`}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               <div className="hero-clock">
-                <span className="hero-emoji" aria-hidden="true">
+                <span className="hero-emoji" role="presentation">
                   🚆
                 </span>
                 <strong className="hero-title">{walkIndicator?.title || languageText.walk.idleTitle}</strong>
@@ -795,7 +820,13 @@ export default function App() {
                 </p>
               </div>
             </div>
-            <div className="mobile-flashcard">{activeMobileSection?.render()}</div>
+            <div
+              className="mobile-flashcard"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              {activeMobileSection?.render()}
+            </div>
             <div className="mobile-nav">
               <button
                 type="button"
