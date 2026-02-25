@@ -218,6 +218,21 @@ select {
   box-shadow: 0 10px 30px -20px var(--shadow);
 }
 
+.list-frame {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.flip-button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+}
+
 .panel {
   border: 2px solid var(--border);
   padding: 18px;
@@ -241,6 +256,7 @@ select {
   display: flex;
   gap: 12px;
   align-items: center;
+  justify-content: space-between;
 }
 
 .panel-emoji {

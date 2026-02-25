@@ -383,18 +383,26 @@ export default function App() {
                 <span className="panel-emoji" role="presentation">
                   ⬆️
                 </span>
-                <div>
-                  <p className="panel-label">Inbound · Bowdoin</p>
-                  <strong className="panel-title">
-                    {primaryPredictions.length
-                      ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
-                      : 'No inbound departures'}
-                  </strong>
-                </div>
+              <div>
+                <p className="panel-label">Inbound · Bowdoin</p>
+                <strong className="panel-title">
+                  {primaryPredictions.length
+                    ? `Next ${formatMinutes(primaryPredictions[0].liveMinutes)}`
+                    : 'No inbound departures'}
+                </strong>
               </div>
-              {primaryPredictions.length ? (
+              <button
+                className="flip-button"
+                onClick={() => setActiveCard('outbound')}
+                title="Flip to Wonderland outbound"
+              >
+                Flip
+              </button>
+            </div>
+            {primaryPredictions.length ? (
+              <div className="list-frame">
                 <ul className="list">
-                  {primaryPredictions.slice(0, 8).map((p) => (
+                {primaryPredictions.slice(0, 8).map((p) => (
                     <li key={p.id} className="row">
                       <div className="row-left">
                         <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
@@ -412,7 +420,8 @@ export default function App() {
                       </div>
                     </li>
                   ))}
-                </ul>
+                 </ul>
+               </div>
               ) : (
                 <div className="empty primary-empty">Inbound timing settles soon.</div>
               )}
@@ -426,14 +435,22 @@ export default function App() {
                 <span className="panel-emoji" role="presentation">
                   ↩️
                 </span>
-                <div>
-                  <p className="panel-label">Outbound · Wonderland</p>
-                  <strong className="panel-title">Outbound timetable</strong>
-                </div>
+              <div>
+                <p className="panel-label">Outbound · Wonderland</p>
+                <strong className="panel-title">Outbound timetable</strong>
               </div>
-              {secondaryPredictions.length ? (
+              <button
+                className="flip-button"
+                onClick={() => setActiveCard('inbound')}
+                title="Flip to Bowdoin inbound"
+              >
+                Flip
+              </button>
+            </div>
+            {secondaryPredictions.length ? (
+              <div className="list-frame">
                 <ul className="list">
-                  {secondaryPredictions.slice(0, 10).map((p) => (
+                {secondaryPredictions.slice(0, 10).map((p) => (
                     <li key={p.id} className="row">
                       <div className="row-left">
                         <span className="time-badge">{formatMinutes(p.liveMinutes)}</span>
@@ -452,6 +469,7 @@ export default function App() {
                     </li>
                   ))}
                 </ul>
+              </div>
               ) : (
                 <div className="empty secondary-empty">Outbound arrivals show up here once available.</div>
               )}
