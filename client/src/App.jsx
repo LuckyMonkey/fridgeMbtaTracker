@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import useMediaQuery from './hooks/useMediaQuery';
 import { translations } from './i18n';
+import BlindModeView from './components/BlindModeView';
+import NormalView from './components/NormalView';
+import useBlindMode from './hooks/useBlindMode';
 
 const formatMinutes = (minutes) => {
   if (minutes === null || minutes === undefined) return '—';
@@ -58,6 +62,7 @@ const DEFAULT_WALK_TIME_MINUTES = toPositiveNumber(import.meta.env.VITE_WALK_MIN
 const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
 const MIN_MISS_MS = 3 * 60_000;
 const MAX_PREDICTION_ROWS = 4;
+const CLI_USER_AGENT_RE = /\b(?:lynx|links|w3m|elinks|curl|wget)\b/i;
 
 const getPredictionEventMs = (prediction) => {
   const iso = prediction?.arrivalTime || prediction?.departureTime;
@@ -133,6 +138,14 @@ export default function App() {
   const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
   const appVersion = import.meta.env.VITE_APP_VERSION || '0.2.0';
   const languageText = useMemo(() => getLanguageText(language), [language]);
+  const { blindMode, enableBlindMode, disableBlindMode } = useBlindMode();
+  const [showAccessPrompt, setShowAccessPrompt] = useState(false);
+  const [promptSeen, setPromptSeen] = useState(false);
+  const [cliMode, setCliMode] = useState(false);
+  const [announcement, setAnnouncement] = useState(() => getLanguageText(language).flashcards.heroIdleSubtitle || '');
+  const headingRef = useRef(null);
+  const announcementDebounceRef = useRef(null);
+  const isMobileViewport = useMediaQuery('(max-width: 900px)', { defaultValue: false });
 
   const pollRef = useRef(null);
   const automationPollRef = useRef(null);
@@ -279,6 +292,12 @@ export default function App() {
     }, 700);
     return () => clearTimeout(timer);
   }, [activeMobileCard]);
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      setMobileCardIndex(0);
+    }
+  }, [isMobileViewport]);
 
   useEffect(() => {
     const container = swipeRef.current;
@@ -719,38 +738,40 @@ const automationStateClass = `status-${automationStateKey}`;
               {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
             </article>
 
-            <div className="card-navigation" role="navigation" aria-label={languageText.flashcards.navigationLabel}>
-              <button
-                type="button"
-                className="card-switch card-switch--prev"
-                aria-label={languageText.flashcards.prevCard}
-                title={languageText.flashcards.prevCard}
-                onClick={() => cycleMobileCard(-1)}
-              >
-                ‹
-              </button>
-              <div className="card-indicators" aria-hidden="true">
-                {CARD_IDS.map((cardId, index) => (
-                  <button
-                    key={cardId}
-                    type="button"
-                    className={`card-dot ${activeMobileCard === cardId ? 'card-dot--active' : ''}`}
-                    onClick={() => setMobileCardIndex(index)}
-                    title={cardLabels[cardId] || cardId}
-                    aria-label={cardLabels[cardId] || cardId}
-                  />
-                ))}
+            {isMobileViewport ? (
+              <div className="card-navigation" role="navigation" aria-label={languageText.flashcards.navigationLabel}>
+                <button
+                  type="button"
+                  className="card-switch card-switch--prev"
+                  aria-label={languageText.flashcards.prevCard}
+                  title={languageText.flashcards.prevCard}
+                  onClick={() => cycleMobileCard(-1)}
+                >
+                  ‹
+                </button>
+                <div className="card-indicators" aria-hidden="true">
+                  {CARD_IDS.map((cardId, index) => (
+                    <button
+                      key={cardId}
+                      type="button"
+                      className={`card-dot ${activeMobileCard === cardId ? 'card-dot--active' : ''}`}
+                      onClick={() => setMobileCardIndex(index)}
+                      title={cardLabels[cardId] || cardId}
+                      aria-label={cardLabels[cardId] || cardId}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="card-switch card-switch--next"
+                  aria-label={languageText.flashcards.nextCard}
+                  title={languageText.flashcards.nextCard}
+                  onClick={() => cycleMobileCard(1)}
+                >
+                  ›
+                </button>
               </div>
-              <button
-                type="button"
-                className="card-switch card-switch--next"
-                aria-label={languageText.flashcards.nextCard}
-                title={languageText.flashcards.nextCard}
-                onClick={() => cycleMobileCard(1)}
-              >
-                ›
-              </button>
-            </div>
+            ) : null}
           </div>
         </section>
       </main>

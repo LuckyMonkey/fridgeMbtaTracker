@@ -4,7 +4,7 @@ const cors = require('cors');
 const { fetchStopPredictions } = require('./mbta');
 const { connectMongo, ensureIndexes, upsertDefaultStop } = require('./store');
 const { createVolumeAutomation } = require('./automation');
-const APP_VERSION = process.env.APP_VERSION || '0.1.0';
+const APP_VERSION = process.env.APP_VERSION || '0.2.0';
 
 const toPositiveInt = (value, fallback, min = 1) => {
   const parsed = Number(value);

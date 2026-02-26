@@ -2,12 +2,17 @@ FROM node:20-alpine3.20
 
 WORKDIR /app
 
+RUN apk add --no-cache \
+    alsa-utils \
+    bluez \
+    pulseaudio-utils
+
 COPY package.json ./
 RUN npm install --production
 
 COPY src ./src
+COPY scripts ./scripts
 
 EXPOSE 4000
 
 CMD ["npm", "start"]
-

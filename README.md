@@ -1,6 +1,6 @@
 # 🚆 MBTA Tracker (MERN)
 
-Live Suffolk Downs timing wrapped in a focused inbound first UI that treats Bowdoin trains as your only immediate destination, with a smooth outbound flip view hiding Wonderland schedules behind the icon button.
+Live Suffolk Downs timing wrapped in a focused inbound-first UI that treats Bowdoin trains as your immediate destination, presenting the hero timer, timetable, and automation controls as a swipeable card deck while still keeping Wonderland runs accessible.
 
 ## ✦ Why this build
 
@@ -8,13 +8,13 @@ Live Suffolk Downs timing wrapped in a focused inbound first UI that treats Bowd
 - **10-foot friendly layout** – black-on-white, Helvetica-inspired, high-contrast borders, squared edges, drop shadows, and mobile-friendly scaling keep the UI legible whether on a hallway screen or phone.
 - **Smart timing guidance** – leave-time message includes seconds, compares arrivals to the configured walk buffer, and marks trains arriving faster than you can reach the stop as “missed.” The next catchable train is highlighted and stays in sync via a 30 second polling cadence.
 - **Volume boost automation** – the dedicated bottom panel keeps household automation in view without crowding the timetable.
-- **Flip-to-outbound control** – a lightweight emoji icon in the top-right of the timetable panel toggles the outbound (Wonderland) list via a smooth accordion-style transition so only one card shows at a time.
+- **Card-stack navigation** – the hero timer, timetable, and volume controls live in one deck of flashcards; arrow buttons and swipe gestures let you cycle through the views so only the card you care about sits front and center.
 - **Version visibility** – the header now shows `vX.Y.Z` in the upper-right so you can see what build is live; for automated checks scrape `/api/version` to confirm the deployed version and correlate with the badge printed on the page.
 
 ## 🧭 UI behavior highlights
 
 - **Primary (main) view**: Always renders the Bowdoin arrivals because that is your inbound destination from Suffolk Downs. Trains with less than 3 minutes until departure fade to light gray and carry a “missed” tag, while the first viable train is specially highlighted and numbered in plain language (“Next train you can make”).
-- **Flip control**: Tap the directional emoji in the top-right corner of the timetable panel to slide in the secondary Wonderland/outbound card. It never defaults to the secondary view, and the animation keeps the page from overflowing.
+- **Card navigation**: Hero timing, the timetable, and volume automation each sit inside their own flashcards. Desktop stacks show every card at once, while phones expose one card at a time with smooth swipe/arrow transitions so nothing scrolls away from the central leave timer.
 - **Walk buffer**: `WALK_TIME_MINUTES` (default `4`) plus seconds determine whether “Leave now” is realistic—if the next train arrives before you can reach the stop, the UI automatically promotes the next feasible train to the lead position.
 - **Volume panel**: Anchored at the bottom with clean lines, this section reports the next trigger window for the automation hooks and lets you see that the status is active without distracting from the timetable.
 - **Mobile alarm clock view**: On phones the hero clock takes over the entire viewport (header/status now hidden) and shows the leave timer with a train emoji; the upcoming timetable sits on its own flashcard below and you cycle inbound/outbound/volume cards via the left/right arrows at the bottom so nothing scrolls, keeping the screen friendly rather than intense.
@@ -56,8 +56,8 @@ docker compose up -d --build
 | `PREDICTIONS_STALE_MS` | `300000` | How long stale data can be served if the API lags |
 | `PREDICTIONS_TIMEOUT_MS` | `8000` | MBTA request timeout |
 | `PREDICTIONS_LIMIT` | `16` | Number of predictions requested |
-| `VITE_APP_VERSION` | `0.1.0` | Injected into the client to display the running version badge |
-| `APP_VERSION` | `0.1.0` | Propagated through the API so `/api/version` returns it for curl checks |
+| `VITE_APP_VERSION` | `0.2.0` | Injected into the client to display the running version badge |
+| `APP_VERSION` | `0.2.0` | Propagated through the API so `/api/version` returns it for curl checks |
 
 ### Automation variables
 
