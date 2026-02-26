@@ -40,6 +40,14 @@ const es = {
     flipToInboundTitle: 'Mostrar salidas a Bowdoin',
     missedSuffix: ' (perdido)',
     scheduledLabel: 'Programado',
+    heroLabel: 'Temporizador de salida',
+    heroIdleTitle: 'Esperando tiempos',
+    heroIdleSubtitle: 'Aún no hay predicciones entrantes.',
+    timetableLabel: 'Próximos trenes',
+    volumeLabel: 'Automatización de volumen',
+    navigationLabel: 'Cambiar tarjeta',
+    prevCard: 'Tarjeta anterior',
+    nextCard: 'Siguiente tarjeta',
   },
   volumePanel: {
     label: 'Aumento de volumen',
@@ -47,6 +55,15 @@ const es = {
     nextTriggerLabel: 'Próximo disparo',
     raise: 'Subir',
     restore: 'Restaurar',
+    passHelp: 'Registra los trenes cuando pasan para mejorar los tiempos.',
+    passButtons: {
+      bowdoin: 'BOWDOIN TRAIN PASSING',
+      wonderland: 'WONDERLAND TRAIN PASSING',
+    },
+    directions: {
+      bowdoin: 'Bowdoin',
+      wonderland: 'Wonderland',
+    },
   },
   automation: {
     modes: {

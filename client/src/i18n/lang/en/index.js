@@ -39,6 +39,14 @@ const en = {
     flipToInboundTitle: 'Flip to Bowdoin inbound',
     missedSuffix: ' (missed)',
     scheduledLabel: 'Scheduled',
+    heroLabel: 'Leave timer',
+    heroIdleTitle: 'Waiting for timing',
+    heroIdleSubtitle: 'No inbound predictions yet.',
+    timetableLabel: 'Upcoming trains',
+    volumeLabel: 'Volume automation',
+    navigationLabel: 'Switch flash card',
+    prevCard: 'Previous flash card',
+    nextCard: 'Next flash card',
   },
   volumePanel: {
     label: 'Volume boost',
@@ -46,6 +54,15 @@ const en = {
     nextTriggerLabel: 'Next trigger',
     raise: 'Raise',
     restore: 'Restore',
+    passHelp: 'Log the trains as they pass so offsets can learn your timing.',
+    passButtons: {
+      bowdoin: 'BOWDOIN TRAIN PASSING',
+      wonderland: 'WONDERLAND TRAIN PASSING',
+    },
+    directions: {
+      bowdoin: 'Bowdoin',
+      wonderland: 'Wonderland',
+    },
   },
   automation: {
     modes: {
