@@ -482,6 +482,11 @@ useEffect(() => {
   announcementDebounceRef.current = timer;
   return () => clearTimeout(timer);
 }, [heroSubtitle]);
+useEffect(() => {
+  if (typeof document === 'undefined') return;
+  const titleParts = ['MBTA Tracker', heroTitle];
+  document.title = titleParts.filter(Boolean).join(' · ');
+}, [heroTitle]);
 const heroBufferLabel = languageText.walk.walkBufferText(
   walkMinutesLabel,
   Math.round(refreshIntervalMs / 1000)
