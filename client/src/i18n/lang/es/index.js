@@ -77,6 +77,14 @@ const es = {
     },
     upcomingIn: 'en',
   },
+  access: {
+    prompt: {
+      message: '¿Quieres una vista centrada en texto? Activa la vista accesible.',
+      enableLabel: 'Activar vista accesible',
+      dismissLabel: 'Seguir con la interfaz predeterminada',
+    },
+    heroHint: 'Presiona Tab para mostrar controles accesibles.',
+  },
 };
 
 export default es;

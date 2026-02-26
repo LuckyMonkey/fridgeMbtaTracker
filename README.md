@@ -40,6 +40,7 @@ docker compose up -d --build
 - Web UI: `http://fridge.local:5174/`
 - API health: `http://fridge.local:4001/api/health`
 - Suffolk Downs predictions: `http://fridge.local:4001/api/suffolk-downs`
+- Text/browser-friendly readout: `http://fridge.local:4001/lynx` (great for Lynx/links/CLI browsers)
 
 ## ⚙️ Configuration
 

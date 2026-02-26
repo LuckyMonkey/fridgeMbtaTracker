@@ -63,6 +63,7 @@ const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
 const MIN_MISS_MS = 3 * 60_000;
 const MAX_PREDICTION_ROWS = 4;
 const CLI_USER_AGENT_RE = /\b(?:lynx|links|w3m|elinks|curl|wget)\b/i;
+const REPO_URL = 'https://github.com/LuckyMonkey/fridgeMbtaTracker';
 
 const getPredictionEventMs = (prediction) => {
   const iso = prediction?.arrivalTime || prediction?.departureTime;
@@ -98,6 +99,11 @@ const DEFAULT_LANGUAGE = 'es';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 const FALLBACK_STOP_ID = 'place-sdmnl';
 const CARD_IDS = ['hero', 'timetable', 'wonderland', 'volume'];
+const ACCESS_PROMPT_DEFAULT = {
+  message: 'Enable the streamlined accessible layout?',
+  enableLabel: 'Enable accessible view',
+  dismissLabel: 'Continue with the default layout',
+};
 const MIN_SWIPE_DISTANCE = 36;
 
 const readLanguageCookie = () => {
@@ -466,6 +472,16 @@ const walkIndicator = useMemo(() => {
 
 const heroTitle = walkIndicator?.title || languageText.flashcards.heroIdleTitle;
 const heroSubtitle = walkIndicator?.subtitle || languageText.flashcards.heroIdleSubtitle;
+useEffect(() => {
+  if (announcementDebounceRef.current) {
+    clearTimeout(announcementDebounceRef.current);
+  }
+  const timer = setTimeout(() => {
+    setAnnouncement(heroSubtitle);
+  }, 400);
+  announcementDebounceRef.current = timer;
+  return () => clearTimeout(timer);
+}, [heroSubtitle]);
 const heroBufferLabel = languageText.walk.walkBufferText(
   walkMinutesLabel,
   Math.round(refreshIntervalMs / 1000)
@@ -481,7 +497,23 @@ const cardLabels = {
   volume: languageText.volumePanel.label,
 };
 const currentCardLabel = cardLabels[activeMobileCard] || '';
-
+const showAccessibleView = blindMode || cliMode;
+const accessPromptCopy = languageText.access?.prompt || ACCESS_PROMPT_DEFAULT;
+const accessPromptProps = {
+  visible: showAccessPrompt && !showAccessibleView,
+  onEnable: () => {
+    enableBlindMode();
+    setShowAccessPrompt(false);
+    setPromptSeen(true);
+  },
+  onDismiss: () => {
+    setShowAccessPrompt(false);
+    setPromptSeen(true);
+  },
+  message: accessPromptCopy.message,
+  enableLabel: accessPromptCopy.enableLabel,
+  dismissLabel: accessPromptCopy.dismissLabel,
+};
 const handleTrainPass = useCallback(
   async (direction, predictions) => {
     const directionLabel = languageText.volumePanel.directions[direction] || (direction === 'bowdoin' ? 'Bowdoin' : 'Wonderland');
@@ -579,202 +611,262 @@ const automationStateClass = `status-${automationStateKey}`;
     };
   }, []);
 
+  useEffect(() => {
+    if (!showAccessibleView) return;
+    setShowAccessPrompt(false);
+  }, [showAccessibleView]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleTab = (event) => {
+      if (event.key !== 'Tab') return;
+      if (promptSeen || showAccessibleView) return;
+      setShowAccessPrompt(true);
+      setPromptSeen(true);
+    };
+    window.addEventListener('keydown', handleTab, true);
+    return () => window.removeEventListener('keydown', handleTab, true);
+  }, [promptSeen, showAccessibleView]);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    const ua = navigator.userAgent || '';
+    if (CLI_USER_AGENT_RE.test(ua)) {
+      setCliMode(true);
+      enableBlindMode();
+      setShowAccessPrompt(false);
+      setPromptSeen(true);
+    }
+  }, [enableBlindMode]);
+
   return (
-    <div className="page min-h-screen bg-slate-50 text-slate-900" style={{ '--mbta-accent': dominantColor }}>
-      <header className="header">
-        <div className="brand">
-          <h1>🔵 Suffolk Downs</h1>
-        </div>
-        <div className="header-controls">
-          <button className="lang-toggle" type="button" onClick={toggleLanguage} aria-pressed={language === 'en'}>
-            {language === 'es' ? languageText.controls.switchToEnglish : languageText.controls.switchToSpanish}
-          </button>
-          <span className="version-chip">v{appVersion}</span>
-        </div>
-      </header>
-
-      <main className="content">
-        {error ? (
-          <div className="alert error">
-            {languageText.alerts.error}: {error}
-          </div>
-        ) : null}
-        {automationStatus?.lastActionError ? (
-          <div className="alert error">
-            {languageText.alerts.automation}: {automationStatus.lastActionError}
-          </div>
-        ) : null}
-
-        {!integrityOk ? (
-          <div className="alert check-alert">
-            {[
-              !checklist.inbound && languageText.alerts.inboundIntegrity,
-              !checklist.outbound && languageText.alerts.outboundIntegrity,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          </div>
-        ) : null}
-
-        <section className="flashcard-wrapper">
-          <div className="flashcard-stack" ref={swipeRef}>
-            <article className={`flashcard hero-card ${activeMobileCard === 'hero' ? 'flashcard--active' : ''}`}>
-              <div
-                className="panel-heading"
-                data-title-visible={activeMobileCard === 'hero' ? String(cardTitleVisible) : 'true'}
+    <NormalView accessPromptProps={accessPromptProps}>
+      {showAccessibleView ? (
+        <BlindModeView
+          heroTitle={heroTitle}
+          heroSubtitle={heroSubtitle}
+          walkBufferLabel={heroBufferLabel}
+          annotatedPrimary={annotatedPrimary}
+          annotatedSecondary={annotatedSecondary}
+          nextAccessibleId={nextAccessibleId}
+          handleTrainPass={handleTrainPass}
+          passLoading={passLoading}
+          passNotice={passNotice}
+          automationStateLabel={automationStateLabel}
+          nextAutomationLabel={nextAutomationLabel}
+          languageText={languageText}
+          announcement={announcement}
+          headingRef={headingRef}
+          isCliMode={cliMode}
+          lastUpdated={lastUpdated}
+          version={appVersion}
+          repoUrl={REPO_URL}
+        />
+      ) : (
+        <div className="page min-h-screen bg-slate-50 text-slate-900" style={{ '--mbta-accent': dominantColor }}>
+          <header className="header">
+            <div className="brand">
+              <h1>🔵 Suffolk Downs</h1>
+            </div>
+            <div className="header-controls">
+              <button className="lang-toggle" type="button" onClick={toggleLanguage} aria-pressed={language === 'en'}>
+                {language === 'es' ? languageText.controls.switchToEnglish : languageText.controls.switchToSpanish}
+              </button>
+              <a
+                className="version-chip"
+                href={REPO_URL}
+                target="_blank"
+                rel="noreferrer"
               >
-                <span className="panel-emoji" role="presentation">
-                  🚶
-                </span>
-                <div>
-                  <p className="panel-label">{languageText.flashcards.heroLabel}</p>
-                  <strong className="panel-title">{heroTitle}</strong>
-                </div>
-              </div>
-              <div className="hero-display">
-                <p className="hero-subtitle">{heroSubtitle}</p>
-                <p className="hero-meta">{heroBufferLabel}</p>
-              </div>
-            </article>
+                v{appVersion}
+              </a>
+            </div>
+          </header>
 
-            <article className={`flashcard timetable-card ${activeMobileCard === 'timetable' ? 'flashcard--active' : ''}`}>
-              <div
-                className="panel-heading"
-                data-title-visible={activeMobileCard === 'timetable' ? String(cardTitleVisible) : 'true'}
-              >
-                <span className="panel-emoji" role="presentation">
-                  ⬆️
-                </span>
-                <div>
-                  <p className="panel-label">{languageText.flashcards.timetableLabel}</p>
-                  <strong className="panel-title">{timetableHeadline}</strong>
-                </div>
-              </div>
-              <div className="timetable-section">
-                <div className="section-heading">
-                  <span className="section-title">{languageText.flashcards.inboundLabel}</span>
-                </div>
-                {renderPredictionList(annotatedPrimary, {
-                  maxRows: MAX_PREDICTION_ROWS,
-                  emptyLabel: languageText.flashcards.primaryEmpty,
-                  highlightId: nextAccessibleId,
-                })}
-              </div>
-            </article>
-
-            <article className={`flashcard wonderland-card ${activeMobileCard === 'wonderland' ? 'flashcard--active' : ''}`}>
-              <div
-                className="panel-heading"
-                data-title-visible={activeMobileCard === 'wonderland' ? String(cardTitleVisible) : 'true'}
-              >
-                <span className="panel-emoji" role="presentation">
-                  ↩️
-                </span>
-                <div>
-                  <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
-                  <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
-                </div>
-              </div>
-              <div className="timetable-section outbound">
-                {renderPredictionList(annotatedSecondary, {
-                  maxRows: MAX_PREDICTION_ROWS,
-                  emptyLabel: languageText.flashcards.outboundEmpty,
-                })}
-              </div>
-            </article>
-
-            <article className={`flashcard volume-card ${activeMobileCard === 'volume' ? 'flashcard--active' : ''}`}>
-              <div
-                className="panel-heading"
-                data-title-visible={activeMobileCard === 'volume' ? String(cardTitleVisible) : 'true'}
-              >
-                <span className="panel-emoji" role="presentation">
-                  🔊
-                </span>
-                <div>
-                  <p className="panel-label">{languageText.volumePanel.label}</p>
-                  <strong className="panel-title">{automationStateLabel}</strong>
-                </div>
-              </div>
-              <div className="volume-details">
-                <div className="detail-line">
-                  {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
-                </div>
-                <div className="detail-line">
-                  {languageText.volumePanel.statusLabel}:{' '}
-                  <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
-                </div>
-              </div>
-              <div className="volume-actions">
-                <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
-                  {languageText.volumePanel.raise}
-                </button>
-                <button
-                  className="action-button"
-                  disabled={automationAction.busy}
-                  onClick={() => triggerAutomation('restore')}
-                >
-                  {languageText.volumePanel.restore}
-                </button>
-              </div>
-              <div className="pass-actions">
-                <button
-                  className="pass-button"
-                  onClick={() => handleTrainPass('bowdoin', annotatedPrimary)}
-                  disabled={passLoading === 'bowdoin'}
-                >
-                  {languageText.volumePanel.passButtons.bowdoin}
-                </button>
-                <button
-                  className="pass-button"
-                  onClick={() => handleTrainPass('wonderland', annotatedSecondary)}
-                  disabled={passLoading === 'wonderland'}
-                >
-                  {languageText.volumePanel.passButtons.wonderland}
-                </button>
-              </div>
-              <p className="pass-note">{languageText.volumePanel.passHelp}</p>
-              {passNotice ? <p className="pass-note pass-note--status">{passNotice}</p> : null}
-              {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
-            </article>
-
-            {isMobileViewport ? (
-              <div className="card-navigation" role="navigation" aria-label={languageText.flashcards.navigationLabel}>
-                <button
-                  type="button"
-                  className="card-switch card-switch--prev"
-                  aria-label={languageText.flashcards.prevCard}
-                  title={languageText.flashcards.prevCard}
-                  onClick={() => cycleMobileCard(-1)}
-                >
-                  ‹
-                </button>
-                <div className="card-indicators" aria-hidden="true">
-                  {CARD_IDS.map((cardId, index) => (
-                    <button
-                      key={cardId}
-                      type="button"
-                      className={`card-dot ${activeMobileCard === cardId ? 'card-dot--active' : ''}`}
-                      onClick={() => setMobileCardIndex(index)}
-                      title={cardLabels[cardId] || cardId}
-                      aria-label={cardLabels[cardId] || cardId}
-                    />
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="card-switch card-switch--next"
-                  aria-label={languageText.flashcards.nextCard}
-                  title={languageText.flashcards.nextCard}
-                  onClick={() => cycleMobileCard(1)}
-                >
-                  ›
-                </button>
+          <main className="content">
+            {error ? (
+              <div className="alert error">
+                {languageText.alerts.error}: {error}
               </div>
             ) : null}
-          </div>
-        </section>
-      </main>
-    </div>
+            {automationStatus?.lastActionError ? (
+              <div className="alert error">
+                {languageText.alerts.automation}: {automationStatus.lastActionError}
+              </div>
+            ) : null}
+
+            {!integrityOk ? (
+              <div className="alert check-alert">
+                {[
+                  !checklist.inbound && languageText.alerts.inboundIntegrity,
+                  !checklist.outbound && languageText.alerts.outboundIntegrity,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              </div>
+            ) : null}
+
+            <section className="flashcard-wrapper">
+              <div className="flashcard-stack" ref={swipeRef}>
+                <article className={`flashcard hero-card ${activeMobileCard === 'hero' ? 'flashcard--active' : ''}`}>
+                  <div
+                    className="panel-heading"
+                    data-title-visible={activeMobileCard === 'hero' ? String(cardTitleVisible) : 'true'}
+                  >
+                    <span className="panel-emoji" role="presentation">
+                      🚶
+                    </span>
+                    <div>
+                      <p className="panel-label">{languageText.flashcards.heroLabel}</p>
+                      <strong className="panel-title">{heroTitle}</strong>
+                    </div>
+                  </div>
+                  <div className="hero-display">
+                    <p className="hero-subtitle">{heroSubtitle}</p>
+                    <p className="hero-meta">{heroBufferLabel}</p>
+                  </div>
+                </article>
+
+                <article className={`flashcard timetable-card ${activeMobileCard === 'timetable' ? 'flashcard--active' : ''}`}>
+                  <div
+                    className="panel-heading"
+                    data-title-visible={activeMobileCard === 'timetable' ? String(cardTitleVisible) : 'true'}
+                  >
+                    <span className="panel-emoji" role="presentation">
+                      ⬆️
+                    </span>
+                    <div>
+                      <p className="panel-label">{languageText.flashcards.timetableLabel}</p>
+                      <strong className="panel-title">{timetableHeadline}</strong>
+                    </div>
+                  </div>
+                  <div className="timetable-section">
+                    <div className="section-heading">
+                      <span className="section-title">{languageText.flashcards.inboundLabel}</span>
+                    </div>
+                    {renderPredictionList(annotatedPrimary, {
+                      maxRows: MAX_PREDICTION_ROWS,
+                      emptyLabel: languageText.flashcards.primaryEmpty,
+                      highlightId: nextAccessibleId,
+                    })}
+                  </div>
+                </article>
+
+                <article className={`flashcard wonderland-card ${activeMobileCard === 'wonderland' ? 'flashcard--active' : ''}`}>
+                  <div
+                    className="panel-heading"
+                    data-title-visible={activeMobileCard === 'wonderland' ? String(cardTitleVisible) : 'true'}
+                  >
+                    <span className="panel-emoji" role="presentation">
+                      ↩️
+                    </span>
+                    <div>
+                      <p className="panel-label">{languageText.flashcards.outboundLabel}</p>
+                      <strong className="panel-title">{languageText.flashcards.outboundTitle}</strong>
+                    </div>
+                  </div>
+                  <div className="timetable-section outbound">
+                    {renderPredictionList(annotatedSecondary, {
+                      maxRows: MAX_PREDICTION_ROWS,
+                      emptyLabel: languageText.flashcards.outboundEmpty,
+                    })}
+                  </div>
+                </article>
+
+                <article className={`flashcard volume-card ${activeMobileCard === 'volume' ? 'flashcard--active' : ''}`}>
+                  <div
+                    className="panel-heading"
+                    data-title-visible={activeMobileCard === 'volume' ? String(cardTitleVisible) : 'true'}
+                  >
+                    <span className="panel-emoji" role="presentation">
+                      🔊
+                    </span>
+                    <div>
+                      <p className="panel-label">{languageText.volumePanel.label}</p>
+                      <strong className="panel-title">{automationStateLabel}</strong>
+                    </div>
+                  </div>
+                  <div className="volume-details">
+                    <div className="detail-line">
+                      {languageText.volumePanel.nextTriggerLabel}: {nextAutomationLabel}
+                    </div>
+                    <div className="detail-line">
+                      {languageText.volumePanel.statusLabel}:{' '}
+                      <span className={`status-chip ${automationStateClass}`}>{automationStateLabel}</span>
+                    </div>
+                  </div>
+                  <div className="volume-actions">
+                    <button className="action-button" disabled={automationAction.busy} onClick={() => triggerAutomation('raise')}>
+                      {languageText.volumePanel.raise}
+                    </button>
+                    <button
+                      className="action-button"
+                      disabled={automationAction.busy}
+                      onClick={() => triggerAutomation('restore')}
+                    >
+                      {languageText.volumePanel.restore}
+                    </button>
+                  </div>
+                  <div className="pass-actions">
+                    <button
+                      className="pass-button"
+                      onClick={() => handleTrainPass('bowdoin', annotatedPrimary)}
+                      disabled={passLoading === 'bowdoin'}
+                    >
+                      {languageText.volumePanel.passButtons.bowdoin}
+                    </button>
+                    <button
+                      className="pass-button"
+                      onClick={() => handleTrainPass('wonderland', annotatedSecondary)}
+                      disabled={passLoading === 'wonderland'}
+                    >
+                      {languageText.volumePanel.passButtons.wonderland}
+                    </button>
+                  </div>
+                  <p className="pass-note">{languageText.volumePanel.passHelp}</p>
+                  {passNotice ? <p className="pass-note pass-note--status">{passNotice}</p> : null}
+                  {automationAction.error ? <p className="alert inline-alert">{automationAction.error}</p> : null}
+                </article>
+
+                {isMobileViewport ? (
+                  <div className="card-navigation" role="navigation" aria-label={languageText.flashcards.navigationLabel}>
+                    <button
+                      type="button"
+                      className="card-switch card-switch--prev"
+                      aria-label={languageText.flashcards.prevCard}
+                      title={languageText.flashcards.prevCard}
+                      onClick={() => cycleMobileCard(-1)}
+                    >
+                      ‹
+                    </button>
+                    <div className="card-indicators" aria-hidden="true">
+                      {CARD_IDS.map((cardId, index) => (
+                        <button
+                          key={cardId}
+                          type="button"
+                          className={`card-dot ${activeMobileCard === cardId ? 'card-dot--active' : ''}`}
+                          onClick={() => setMobileCardIndex(index)}
+                          title={cardLabels[cardId] || cardId}
+                          aria-label={cardLabels[cardId] || cardId}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="card-switch card-switch--next"
+                      aria-label={languageText.flashcards.nextCard}
+                      title={languageText.flashcards.nextCard}
+                      onClick={() => cycleMobileCard(1)}
+                    >
+                      ›
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          </main>
+        </div>
+      )}
+    </NormalView>
   );
 }

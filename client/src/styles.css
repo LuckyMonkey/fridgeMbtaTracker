@@ -639,3 +639,211 @@ h1 {
 .primary-empty {
   color: #000;
 }
+
+.normal-shell {
+  position: relative;
+  min-height: 100vh;
+}
+
+.access-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(420px, calc(100% - 32px));
+  padding: 18px 22px;
+  background: var(--panel);
+  border-radius: 18px;
+  border: 3px solid var(--border);
+  box-shadow: 0 20px 45px -25px var(--shadow);
+  z-index: 40;
+}
+
+.access-prompt__message {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.access-prompt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.access-prompt__button {
+  flex: 1;
+  min-width: 160px;
+  border: 2px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.access-prompt__button:focus-visible,
+.access-prompt__button:hover {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.access-prompt__button--secondary {
+  background: transparent;
+}
+
+.blind-page {
+  min-height: 100vh;
+  background: #050910;
+  color: #f8fafc;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.blind-page--cli {
+  background: #000;
+}
+
+.blind-header {
+  border: 3px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: color-mix(in srgb, var(--panel) 85%, #000);
+}
+
+.blind-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.blind-tag {
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.blind-version-chip {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.blind-header h1 {
+  margin: 12px 0 4px;
+  font-size: clamp(30px, 4vw, 44px);
+}
+
+.blind-subtitle,
+.blind-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.blind-live {
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 20%, #0f172a);
+  border: 1px solid var(--border);
+}
+
+.blind-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.blind-section {
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  padding: 16px;
+  background: color-mix(in srgb, var(--panel) 60%, #0f172a);
+}
+
+.blind-section h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.blind-section__label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.blind-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.blind-section li {
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.blind-actions {
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  padding: 16px;
+  background: color-mix(in srgb, var(--panel) 60%, #0f172a);
+}
+
+.blind-actions__buttons {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.blind-actions button {
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: #f8fafc;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.blind-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.blind-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.blind-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.blind-footer strong {
+  font-weight: 600;
+}

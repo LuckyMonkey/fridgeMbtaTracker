@@ -26,6 +26,8 @@ export default function BlindModeView({
   headingRef,
   isCliMode,
   lastUpdated,
+  version,
+  repoUrl,
 }) {
   const renderList = (items, label, fallback) => (
     <section className="blind-section">
@@ -54,7 +56,14 @@ export default function BlindModeView({
   return (
     <div className={isCliMode ? 'blind-page blind-page--cli' : 'blind-page'}>
       <header className="blind-header">
-        <p className="blind-tag">{languageText.flashcards.heroLabel}</p>
+        <div className="blind-header-top">
+          <p className="blind-tag">{languageText.flashcards.heroLabel}</p>
+          {repoUrl ? (
+            <a className="blind-version-chip" href={repoUrl} target="_blank" rel="noreferrer">
+              v{version}
+            </a>
+          ) : null}
+        </div>
         <h1 tabIndex={-1} ref={headingRef}>
           {heroTitle}
         </h1>

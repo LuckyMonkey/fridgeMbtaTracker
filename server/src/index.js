@@ -12,6 +12,32 @@ const toPositiveInt = (value, fallback, min = 1) => {
   return Math.floor(parsed);
 };
 
+const parsePredictionEventMs = (prediction) => {
+  const iso = prediction?.arrivalTime || prediction?.departureTime;
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+};
+
+const getPredictionMinutes = (prediction, nowMs) => {
+  const eventMs = parsePredictionEventMs(prediction);
+  if (!Number.isFinite(eventMs)) return prediction?.minutes ?? null;
+  return Math.ceil((eventMs - nowMs) / 60_000);
+};
+
+const formatMinutesLabel = (minutes) => {
+  if (minutes === null || minutes === undefined) return '—';
+  if (minutes <= 0) return 'Now';
+  return `${minutes} min`;
+};
+
+const describeAutomationState = (status) => {
+  if (!status) return 'unknown';
+  if (!status.enabled) return 'disabled';
+  if (status.active) return 'active';
+  return 'armed';
+};
+
 const PORT = toPositiveInt(process.env.PORT, 4000);
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/mbta';
 const MBTA_API_KEY = process.env.MBTA_API_KEY || '';
@@ -424,6 +450,54 @@ app.get('/api/stops/:stopId/predictions', async (req, res) => {
 app.get('/api/suffolk-downs', async (_req, res) => {
   const url = `/api/stops/${encodeURIComponent(DEFAULT_STOP_ID)}/predictions`;
   res.redirect(302, url);
+});
+
+app.get('/lynx', async (req, res) => {
+  const stopId = String(req.query.stopId || DEFAULT_STOP_ID).trim() || DEFAULT_STOP_ID;
+  const limit = toPositiveInt(req.query.limit, 8, 1);
+  try {
+    const payload = await refreshKey({ stopId, limit });
+    const predictions = Array.isArray(payload?.predictions) ? payload.predictions : [];
+    const now = Date.now();
+    const inbound = predictions.filter((p) => p.directionId === 1);
+    const outbound = predictions.filter((p) => p.directionId === 0);
+    const formatList = (items) => {
+      if (!items.length) return ['  (none yet)'];
+      return items.map((prediction) => {
+        const minutes = getPredictionMinutes(prediction, now);
+        const headsign = prediction.headsign || prediction.routeName || prediction.routeId || 'Train';
+        const routeTag = prediction.routeId ? ` (${prediction.routeId})` : '';
+        const status = prediction.status ? ` · ${prediction.status}` : '';
+        return `  ${formatMinutesLabel(minutes)} · ${headsign}${routeTag}${status}`;
+      });
+    };
+    const lines = [];
+    lines.push('MBTA tracker · text view');
+    lines.push(`Stop: ${stopId}`);
+    lines.push(`Version: ${APP_VERSION}`);
+    lines.push(`Fetched: ${payload?.fetchedAt || '—'}`);
+    lines.push('');
+    lines.push('Inbound · Bowdoin');
+    lines.push(...formatList(inbound));
+    lines.push('');
+    lines.push('Outbound · Wonderland');
+    lines.push(...formatList(outbound));
+    lines.push('');
+    const automationStatus = volumeAutomation.getStatus();
+    lines.push(`Automation: ${describeAutomationState(automationStatus)}`);
+    if (automationStatus.nextWindow?.startAt) {
+      lines.push(`Next window (${automationStatus.nextWindow.mode}): ${automationStatus.nextWindow.startAt}`);
+    }
+    lines.push('');
+    lines.push('For the interactive UI visit http://fridge.local:5174/');
+    res.type('text/plain').send(lines.join('\n'));
+  } catch (err) {
+    const status = err?.status || 500;
+    res
+      .status(status)
+      .type('text/plain')
+      .send(`Failed to load predictions: ${err?.message || String(err)}`);
+  }
 });
 
 const toFiniteNumber = (value) => {

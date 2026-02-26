@@ -76,6 +76,14 @@ const en = {
     },
     upcomingIn: 'in',
   },
+  access: {
+    prompt: {
+      message: 'Need a text-first layout? Enable the accessible view.',
+      enableLabel: 'Enable accessible view',
+      dismissLabel: 'Stay on the default layout',
+    },
+    heroHint: 'Press Tab to reveal accessible controls.',
+  },
 };
 
 export default en;
