@@ -144,7 +144,7 @@ export default function App() {
   const [language, setLanguage] = useState(() => readLanguageCookie() || DEFAULT_LANGUAGE);
   const [showAccessPrompt, setShowAccessPrompt] = useState(false);
 
-  const appVersion = import.meta.env.VITE_APP_VERSION || '0.2.0';
+  const appVersion = import.meta.env.VITE_APP_VERSION || '0.2.1';
   const languageText = useMemo(() => getLanguageText(language), [language]);
   const { blindMode, enableBlindMode } = useBlindMode();
   const headingRef = useRef(null);
