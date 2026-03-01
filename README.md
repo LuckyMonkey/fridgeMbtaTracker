@@ -98,7 +98,7 @@ curl -X POST http://fridge.local:4001/api/automation/test \
 
 ## 🧰 Shortcut
 
-Add this to `docker/node-home/links.json` if you want `http://fridge.local:5174/` to appear as “MBTA” in the front panel:
+Add this to `docker/dashboard/links.json` if you want `http://fridge.local:5174/` to appear as “MBTA” in the front panel:
 
 ```json
 { "name": "MBTA", "shortcut": "mbta", "destination": "http://fridge.local:5174/" }
